@@ -244,7 +244,20 @@
         let attemptCount = 0;
         let playerPaths = {};
         let isObserver = false;
-        let currentRole = null;
+        let isProduction = false;
+        let serverPort = 3000;
+
+        // Fetch environment configuration
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                isProduction = config.isProduction;
+                console.log('Environment config:', { isProduction });
+            } catch (error) {
+                console.error('Error fetching config:', error);
+            }
+        }
 
         // Initialize from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -257,10 +270,17 @@
         }
 
         // Connect to WebSocket
-        function connectToRoom() {
+        async function connectToRoom() {
+            await fetchConfig(); // Ensure we have the latest config
             console.log('Connecting to room:', roomId, 'as player:', playerName, 'with role:', role);
-            // Ensure roomId is uppercase to match server expectations
-            ws = new WebSocket(`ws://${window.location.host}/game/${roomId.toUpperCase()}`);
+            
+            // Determine WebSocket protocol and port based on environment
+            const protocol = isProduction ? 'wss:' : 'ws:';
+            const port = isProduction ? '' : `:${serverPort}`;
+            const wsUrl = `${protocol}//${window.location.host}${port}/game/${roomId.toUpperCase()}`;
+            console.log('Connecting to WebSocket URL:', wsUrl);
+            
+            ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
                 console.log('WebSocket connection established');

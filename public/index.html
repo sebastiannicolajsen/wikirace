@@ -227,6 +227,21 @@
         let currentPlayer = null;
         let currentRole = null;
         let selectedRole = 'player'; // Default role
+        let isProduction = false;
+        let serverPort = null;
+
+        // Fetch environment configuration
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                isProduction = config.isProduction;
+                serverPort = config.port || serverPort;
+                console.log('Environment config:', { isProduction, serverPort });
+            } catch (error) {
+                console.error('Error fetching config:', error);
+            }
+        }
 
         // Handle URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -382,44 +397,7 @@
             }
 
             // Connect to the room
-            ws = new WebSocket(`ws://${window.location.host}/game/${roomId}`);
-
-            ws.onopen = () => {
-                console.log('WebSocket connected');
-                // Send join message immediately after connection
-                ws.send(JSON.stringify({ playerName }));
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log('WebSocket message received:', data);
-                handleMessage(data);
-            };
-
-            ws.onclose = (event) => {
-                console.log('WebSocket closed:', event.code, event.reason);
-                // Parse the error message to determine what went wrong
-                const errorMessage = event.reason;
-                if (errorMessage.includes('Room not found')) {
-                    // Keep player name, clear room ID
-                    window.location.href = `/?error=room_not_found&playerName=${encodeURIComponent(playerName)}`;
-                } else if (errorMessage.includes('Player name already taken')) {
-                    // Keep room ID, clear player name
-                    window.location.href = `/?error=name_taken&roomId=${encodeURIComponent(roomId)}`;
-                } else if (errorMessage.includes('Valid player name is required')) {
-                    // Keep room ID, clear player name
-                    window.location.href = `/?error=invalid_name&roomId=${encodeURIComponent(roomId)}`;
-                } else {
-                    // Generic error, keep both fields
-                    window.location.href = `/?error=connection_failed&roomId=${encodeURIComponent(roomId)}&playerName=${encodeURIComponent(playerName)}`;
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                // Keep existing parameters but show error
-                window.location.href = `/?error=connection_failed&roomId=${encodeURIComponent(roomId)}&playerName=${encodeURIComponent(playerName)}`;
-            };
+            connectToRoom(roomId, playerName, 'player');
         });
 
         // Leave Room Button Handler
@@ -439,35 +417,43 @@
 
         function connectToRoom(roomId, playerName, role) {
             console.log('Connecting to room with role:', role); // Debug log
-            ws = new WebSocket(`ws://localhost:3000/game/${roomId}`);
+            fetchConfig().then(() => {
+                // Determine WebSocket protocol and port based on environment
+                const protocol = isProduction ? 'wss:' : 'ws:';
+                const port = isProduction ? '' : `:${serverPort}`;
+                const wsUrl = `${protocol}//${window.location.host}/game/${roomId}`;
+                console.log('Connecting to WebSocket URL:', wsUrl);
+                
+                ws = new WebSocket(wsUrl);
 
-            ws.onopen = () => {
-                console.log('WebSocket connected');
-                // Send join message immediately after connection
-                const joinMessage = { 
-                    type: 'join',
-                    playerName: playerName,
-                    role: role
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    // Send join message immediately after connection
+                    const joinMessage = { 
+                        type: 'join',
+                        playerName: playerName,
+                        role: role
+                    };
+                    console.log('Sending join message:', joinMessage);
+                    ws.send(JSON.stringify(joinMessage));
                 };
-                console.log('Sending join message:', joinMessage);
-                ws.send(JSON.stringify(joinMessage));
-            };
 
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log('WebSocket message received:', data);
-                handleMessage(data);
-            };
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('WebSocket message received:', data);
+                    handleMessage(data);
+                };
 
-            ws.onclose = () => {
-                console.log('WebSocket closed');
-                showSection('initialSelection');
-            };
+                ws.onclose = () => {
+                    console.log('WebSocket closed');
+                    showSection('initialSelection');
+                };
 
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                alert('Failed to connect to room');
-            };
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    alert('Failed to connect to room');
+                };
+            });
         }
 
         function handleMessage(data) {

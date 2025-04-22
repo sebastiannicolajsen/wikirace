@@ -11,10 +11,19 @@ const roomCleanupTimers = new Map();
 
 // Get port from environment variable or use 3000 for local development
 const port = process.env.PORT || 3000;
+const isProduction = process.env.PRODUCTION === 'true';
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
+
+// Add environment configuration endpoint
+app.get('/api/config', (req, res) => {
+    res.json({
+        isProduction: isProduction,
+        port: port
+    });
+});
 
 const newRoom = (name, startUrl, endUrl, creatorName, countdownTime = 30) => {
     const id = uuid4().substring(0, 4).toUpperCase();
