@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiRace - Game</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Wikipedia Core Styles -->
+    <link rel="stylesheet" href="https://en.wikipedia.org/w/load.php?lang=en&modules=ext.cite.styles%7Cext.uls.interlanguage%7Cext.visualEditor.desktopArticleTarget.noscript%7Cext.wikimediaBadges%7Cmediawiki.action.styles%7Cmediawiki.toc.styles%7Cskins.vector.styles.legacy%7Cwikibase.client.init&only=styles">
+    <link rel="stylesheet" href="https://en.wikipedia.org/w/load.php?lang=en&modules=site.styles&only=styles">
+    <style>
+        .game-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .game-iframe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .waiting-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .timer {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4B5563;
+            text-align: center;
+            min-width: 100px;
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+        .player-status {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .player-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .current-player {
+            background-color: #3B82F6;
+            color: white;
+        }
+        .other-player {
+            background-color: #E5E7EB;
+            color: #4B5563;
+        }
+        .selected {
+            background-color: #10B981;
+            color: white;
+        }
+        .waiting {
+            background-color: #F59E0B;
+            color: white;
+        }
+        .copy-button {
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+        .copy-button:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .copy-success {
+            color: #059669;
+        }
+        #shareableLink {
+            outline: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            width: auto;
+            color: inherit;
+        }
+        .game-content {
+            margin-top: 120px;
+            padding: 20px;
+        }
+        .path-item {
+            display: inline-block;
+            margin: 0 4px;
+            color: #0645ad;
+            font-size: 0.85rem;
+        }
+        .path-arrow {
+            display: inline-block;
+            margin: 0 4px;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        .path-remaining {
+            color: #666;
+            font-size: 0.85rem;
+            margin-left: 4px;
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+        .end-goal {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        .path-container {
+            font-size: 0.9rem;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @media (max-width: 640px) {
+            .game-header {
+                padding: 8px;
+            }
+            .game-content {
+                margin-top: 140px;
+            }
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            .header-bottom {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            .end-goal {
+                font-size: 1rem;
+            }
+            .path-container {
+                width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="game-header p-4">
+        <div class="max-w-7xl mx-auto">
+            <div class="header-top">
+                <div>
+                    <p class="end-goal mt-1" id="endGoal">End Goal: Loading...</p>
+                </div>
+            </div>
+            <div class="header-bottom">
+                <div class="path-container">
+                    <span class="font-semibold">Path:</span> 
+                    <span id="visitedPagesList"></span>
+                </div>
+                <div class="player-status hidden" id="playerStatus">
+                    <!-- Player status badges will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameContent" class="game-content">
+        <!-- Content will be loaded here -->
+    </div>
+
+    <div id="waitingScreen" class="waiting-screen">
+        <div class="text-center">
+            <div class="mb-8">
+                <h2 class="text-2xl font-semibold" id="currentRoomName">Room Name</h2>
+                <p class="text-gray-600 mb-1" id="roomIdDisplay">Room ID: ABCD</p>
+            </div>
+            <h2 class="text-2xl font-bold mb-4">Waiting for other players...</h2>
+            <div class="mb-4">
+                <p class="text-gray-600 font-semibold">Start: <span id="waitingStartUrl" class="text-blue-600"></span></p>
+                <p class="text-gray-600 font-semibold">Goal: <span id="waitingEndUrl" class="text-blue-600"></span></p>
+            </div>
+            <p class="text-gray-600 mb-8">Time remaining: <span id="waitingTimer" class="hidden">30s</span></p>
+            <div class="player-status" id="waitingPlayerStatus">
+                <!-- Player status badges will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="resultsScreen" class="waiting-screen" style="display: none;">
+        <div class="text-center max-w-4xl mx-auto p-4">
+            <h2 class="text-2xl font-bold mb-6">Game Results</h2>
+            <div id="resultsContent" class="text-left">
+                <!-- Results will be added here -->
+            </div>
+            <button onclick="window.location.href='/'" class="mt-8 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <div class="timer hidden" id="timer">30s</div>
+
+    <script>
+        let ws = null;
+        let currentRoom = null;
+        let currentPlayer = null;
+        let turnEndTime = null;
+        let timerInterval = null;
+        let hasSelectedLink = false;
+        let currentPageLinks = [];
+        let isFirstPageLoad = true;
+        let gameStarted = false;
+        let visitedPages = [];
+        let attemptCount = 0;
+        let playerPaths = {};
+        let isObserver = false;
+        let currentRole = null;
+
+        // Initialize from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('roomId');
+        const playerName = urlParams.get('playerName');
+        const role = urlParams.get('role');
+
+        if (!roomId || !playerName) {
+            window.location.href = '/';
+        }
+
+        // Connect to WebSocket
+        function connectToRoom() {
+            console.log('Connecting to room:', roomId, 'as player:', playerName, 'with role:', role);
+            // Ensure roomId is uppercase to match server expectations
+            ws = new WebSocket(`ws://${window.location.host}/game/${roomId.toUpperCase()}`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connection established');
+                // Send join message immediately
+                const joinMessage = { 
+                    type: 'join',
+                    playerName: playerName,
+                    role: role || 'player' // Default to player if role not specified
+                };
+                console.log('Sending join message:', joinMessage);
+                ws.send(JSON.stringify(joinMessage));
+            };
+
+            ws.onmessage = (event) => {
+                console.log('Received message:', event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log("__DATA", data);
+                    handleMessage(data);
+                } catch (error) {
+                    console.error('Error parsing message:', error);
+                }
+            };
+
+            ws.onclose = (event) => {
+                console.log('WebSocket connection closed:', event.code, event.reason);
+                // Only redirect if the game hasn't started yet
+                if (!currentRoom || currentRoom.state !== 'playing') {
+                    // Parse the error message to determine what went wrong
+                    const errorMessage = event.reason;
+                    if (errorMessage.includes('Room not found')) {
+                        // Keep player name, clear room ID
+                        window.location.href = `/?error=room_not_found&playerName=${encodeURIComponent(playerName)}`;
+                    } else if (errorMessage.includes('Player name already taken')) {
+                        // Keep room ID, clear player name
+                        window.location.href = `/?error=name_taken&roomId=${encodeURIComponent(roomId)}`;
+                    } else if (errorMessage.includes('Valid player name is required')) {
+                        // Keep room ID, clear player name
+                        window.location.href = `/?error=invalid_name&roomId=${encodeURIComponent(roomId)}`;
+                    } else {
+                        // Generic error, keep both fields
+                        window.location.href = `/?error=connection_failed&roomId=${encodeURIComponent(roomId)}&playerName=${encodeURIComponent(playerName)}`;
+                    }
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                // Only redirect if the game hasn't started yet
+                if (!currentRoom || currentRoom.state !== 'playing') {
+                    // Keep existing parameters but show error
+                    window.location.href = `/?error=connection_failed&roomId=${encodeURIComponent(roomId)}&playerName=${encodeURIComponent(playerName)}`;
+                }
+            };
+        }
+
+        // Start the connection
+        connectToRoom();
+
+        function toggleGameInterface(showGame) {
+            console.log('toggleGameInterface called with showGame:', showGame);
+            const waitingScreen = document.getElementById('waitingScreen');
+            const gameFrame = document.getElementById('gameFrame');
+            const playerStatus = document.getElementById('playerStatus');
+            const timer = document.getElementById('timer');
+            
+            if (showGame) {
+                if (waitingScreen) {
+                    console.log('Hiding waiting screen');
+                    waitingScreen.style.display = 'none';
+                }
+                if (gameFrame) {
+                    console.log('Showing game frame');
+                    gameFrame.style.display = 'block';
+                }
+                if (playerStatus) {
+                    playerStatus.classList.add('hidden');
+                }
+                if (timer) {
+                    timer.classList.add('hidden');
+                }
+            } else {
+                if (waitingScreen) {
+                    console.log('Showing waiting screen');
+                    waitingScreen.style.display = 'flex';
+                }
+                if (gameFrame) {
+                    console.log('Hiding game frame');
+                    gameFrame.style.display = 'none';
+                }
+            }
+        }
+
+        function showWaitingScreen(message, waitingForPlayers) {
+            console.log('showWaitingScreen called with message:', message, 'waiting for:', waitingForPlayers);
+            const waitingScreen = document.getElementById('waitingScreen');
+            const waitingText = document.createElement('div');
+            waitingText.className = 'text-center mb-4';
+            
+            // Format the end URL for display
+            const endUrl = currentRoom.endUrl;
+            const endTitle = endUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
+            const formattedEndUrl = decodeURIComponent(endTitle);
+            
+            waitingText.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4">${message}</h2>
+                <p class="text-gray-600 mb-4">Still waiting for: ${waitingForPlayers.join(', ')}</p>
+                <div class="mb-4">
+                    <p class="text-gray-600 font-semibold">Current: <span class="text-blue-600">${decodeURIComponent(currentRoom.currentUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || '')}</span></p>
+                    <p class="text-gray-600 font-semibold">Goal: <span class="text-blue-600">${formattedEndUrl}</span></p>
+                    <p class="text-gray-600 text-sm">${endUrl}</p>
+                </div>
+            `;
+            
+            waitingScreen.innerHTML = '';
+            waitingScreen.appendChild(waitingText);
+            console.log('Setting waiting screen display to flex');
+            waitingScreen.style.display = 'flex';
+
+            // If the message is "We picked for you!", hide the screen after 10 seconds
+            if (message === 'We picked for you!') {
+                // First hide the game interface
+                toggleGameInterface(false);
+                
+                // Then set a timeout to show it again after 10 seconds
+                setTimeout(() => {
+                    waitingScreen.style.display = 'none';
+                    toggleGameInterface(true);
+                }, 10000);
+            } else {
+                // For other messages, just hide the game interface
+                toggleGameInterface(false);
+            }
+        }
+
+        function handleMessage(data) {
+            console.log('Handling message:', data);
+            const isObserver = role === 'observer';
+            
+            switch (data.type) {
+                case 'room_info':
+                    currentRoom = data.room;
+                    currentPlayer = playerName;
+                    // If the creator is an observer, set currentRole to observer
+                    currentRole = data.room.observers.includes(data.playerName) ? 'observer' : 'player';
+                    console.log('Room info received:', { currentRoom, currentPlayer, currentRole });
+                    updateWaitingRoom(data.room);
+                    // Update countdown display in rules
+                    const countdownTime = data.room.countdownTime || 30;
+                    console.log('Setting countdown time to:', countdownTime);
+                    document.getElementById('countdownDisplay').textContent = countdownTime;
+                    showSection('waitingRoom');
+                    break;
+                case 'error':
+                    console.error('Server error:', data.message);
+                    if (!gameStarted) {
+                        alert(data.message);
+                        window.location.href = '/';
+                    }
+                    break;
+                case 'game_started':
+                    console.log('Game started message received:', data);
+                    gameStarted = true;
+                    currentRoom = data.room;
+                    currentPlayer = playerName;
+                    hasSelectedLink = false;
+                    visitedPages = [];
+                    updateVisitedPagesList();
+                    
+                    if (isObserver) {
+                        showObserverView();
+                    } else {
+                        // Regular player view
+                        // Update UI elements
+                        const roomNameElement2 = document.getElementById('roomName');
+                        if (roomNameElement2) {
+                            roomNameElement2.textContent = data.room.name;
+                        }
+                        
+                        // Extract and format URLs from room object
+                        const startUrl = data.room.startUrl || '';
+                        const endUrl = data.room.endUrl || '';
+                        console.log('Game Start - End URL:', endUrl);
+                        const startTitle = startUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
+                        const endTitle = endUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
+                        console.log('Game Start - End Title:', endTitle);
+                        const gameDecodedEndTitle = decodeURIComponent(endTitle);
+                        console.log('Game Start - Decoded End Title:', gameDecodedEndTitle);
+                        
+                        // Update all URL displays
+                        const endGoalElement2 = document.getElementById('endGoal');
+                        if (endGoalElement2) {
+                            endGoalElement2.textContent = `End Goal: ${gameDecodedEndTitle}`;
+                        }
+                        const waitingStartUrlElement = document.getElementById('waitingStartUrl');
+                        if (waitingStartUrlElement) {
+                            waitingStartUrlElement.textContent = decodeURIComponent(startTitle);
+                        }
+                        const waitingEndUrlElement2 = document.getElementById('waitingEndUrl');
+                        if (waitingEndUrlElement2) {
+                            waitingEndUrlElement2.textContent = gameDecodedEndTitle;
+                        }
+                        
+                        // Update room name and ID in waiting screen
+                        const currentRoomName = document.getElementById('currentRoomName');
+                        if (currentRoomName) {
+                            currentRoomName.textContent = data.room.name;
+                        }
+                        const roomIdDisplay = document.getElementById('roomIdDisplay');
+                        if (roomIdDisplay) {
+                            roomIdDisplay.textContent = `Room ID: ${data.room.id}`;
+                        }
+                        
+                        // Hide player status and timer
+                        const playerStatusElement = document.getElementById('playerStatus');
+                        if (playerStatusElement) {
+                            playerStatusElement.classList.add('hidden');
+                        }
+                        const timerElement = document.getElementById('timer');
+                        if (timerElement) {
+                            timerElement.classList.add('hidden');
+                        }
+                        
+                        // Show game interface
+                        toggleGameInterface(true);
+                        
+                        if (data.currentUrl) {
+                            console.log('Loading initial page:', data.currentUrl);
+                            loadCurrentPage(data.currentUrl);
+                        } else {
+                            console.error('No current URL provided in game start message');
+                        }
+                    }
+                    break;
+                case 'page_update':
+                    console.log('Page update received:', data);
+                    console.log('Room data:', data.room);
+                    console.log('Player states:', data.room?.playerStates);
+                    
+                    // Update currentRoom with latest data
+                    if (data.room) {
+                        currentRoom = data.room;
+                    }
+                    
+                    if (isObserver) {
+                        updateObserverView(data);
+                    } else {
+                        // Regular player view
+                        // Update end goal display
+                        if (data.endUrl) {
+                            const endTitle = data.endUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
+                            document.getElementById('endGoal').textContent = `End Goal: ${decodeURIComponent(endTitle)}`;
+                        }
+                        
+                        // Show timer if endTime is provided
+                        const timer = document.getElementById('timer');
+                        if (timer && data.endTime) {
+                            turnEndTime = data.endTime;
+                            // Update timer display with the countdown time from server
+                            if (data.countdownTime) {
+                                timer.textContent = `${data.countdownTime}s`;
+                            }
+                            timer.classList.remove('hidden');
+                            startTimer();
+                        } else {
+                            // If no endTime, hide the timer
+                            timer.classList.add('hidden');
+                            if (timerInterval) {
+                                clearInterval(timerInterval);
+                                timerInterval = null;
+                            }
+                        }
+                        
+                        // Handle waiting players and page loading
+                        if (data.waitingPlayers && data.waitingPlayers.length > 0) {
+                            // Some players are still selecting
+                            if (data.waitingPlayers.includes(currentPlayer)) {
+                                // Current player is waiting, show waiting screen
+                                showWaitingScreen('Waiting for other players...', currentRoom.players.filter(p => p !== currentPlayer));
+                                toggleGameInterface(false);
+                            } else {
+                                // Current player needs to select
+                                showWaitingScreen('Select a link!', data.waitingPlayers);
+                                toggleGameInterface(true);
+                                
+                                // Ensure timer is shown for players who need to select
+                                if (timer && data.endTime) {
+                                    turnEndTime = data.endTime;
+                                    if (data.countdownTime) {
+                                        timer.textContent = `${data.countdownTime}s`;
+                                    }
+                                    timer.classList.remove('hidden');
+                                    startTimer();
+                                }
+                            }
+                        } else if (data.allPlayersSelected) {
+                            attemptCount++;
+                            document.getElementById('waitingScreen').style.display = 'none';
+                            toggleGameInterface(true);
+                            
+                            // Get the current player's URL from playerStates
+                            if (currentRoom?.playerStates) {
+                                const playerUrl = currentRoom.playerStates[currentPlayer];
+                                console.log('Current player:', currentPlayer);
+                                console.log('Player URL from states:', playerUrl);
+                                
+                                if (playerUrl) {
+                                    console.log('Loading player\'s selected page:', playerUrl);
+                                    loadCurrentPage(playerUrl);
+                                    hasSelectedLink = false;
+                                }
+                            }
+                        }
+                        updateVisitedPagesList();
+                    }
+                    break;
+                case 'game_over':
+                    console.log('Game over message received:', data);
+                    const winnerText = data.winners.length > 1 
+                        ? `Winners: ${data.winners.join(', ')}` 
+                        : `Winner: ${data.winners[0]}`;
+                    showResults(data);
+                    break;
+                case 'player_joined':
+                    currentRoom = data.room;
+                    // Update countdown display in rules when new player joins
+                    const newCountdownTime = data.room.countdownTime || 30;
+                    console.log('Updating countdown time to:', newCountdownTime);
+                    document.getElementById('countdownDisplay').textContent = newCountdownTime;
+                    updateWaitingRoom(data.room);
+                    break;
+                case 'player_left':
+                case 'player_disconnected':
+                    if (data.players) {
+                        updatePlayerStatus(data.players);
+                    }
+                    break;
+                case 'timer_expired':
+                    console.log('Timer expired message received:', data);
+                    if (data.waitingPlayers.includes(currentPlayer)) {
+                        // We need to make a random selection
+                        console.log('Need to make random selection');
+                        const links = Array.from(document.querySelectorAll('.wiki-link'));
+                        if (links.length === 0) {
+                            links = Array.from(document.querySelectorAll('a[href^="/wiki/"]')).filter(link => {
+                                const href = link.getAttribute('href');
+                                return href && !href.includes('Special:') && 
+                                       !href.includes('File:') && 
+                                       !href.includes('Help:') &&
+                                       !href.includes('Template:') &&
+                                       !href.includes('Category:') &&
+                                       !href.includes('Portal:') &&
+                                       !href.includes('Wikipedia:');
+                            });
+                        }
+                        
+                        if (links.length > 0) {
+                            const randomLink = links[Math.floor(Math.random() * links.length)];
+                            const href = randomLink.dataset.href || randomLink.getAttribute('href');
+                            const fullUrl = 'https://en.wikipedia.org' + href;
+                            console.log('Making random selection:', fullUrl);
+                            
+                            // Show notification with the selected term
+                            const notification = document.createElement('div');
+                            notification.className = 'fixed top-0 left-1/2 transform -translate-x-1/2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-lg z-[5000]';
+                            notification.innerHTML = `
+                                <p class="font-semibold">Time's up!</p>
+                                <p>Randomly selected: ${randomLink.textContent}</p>
+                            `;
+                            document.body.appendChild(notification);
+                            
+                            // Remove notification after 10 seconds
+                            setTimeout(() => {
+                                notification.remove();
+                            }, 10000);
+                            
+                            // Show the "We picked for you!" screen
+                            showWaitingScreen('We picked for you!', data.waitingPlayers);
+                            
+                            // Mark that we've selected a link
+                            hasSelectedLink = true;
+                            
+                            // Send the page change message
+                            sendMessage({
+                                type: 'page_change',
+                                url: fullUrl
+                            });
+                        }
+                    }
+                    break;
+            }
+        }
+
+        function updateUI() {
+            if (!currentRoom) {
+                console.error('No room data available');
+                return;
+            }
+
+            document.getElementById('roomName').textContent = currentRoom.name;
+            // Extract the title from the end URL for display
+            const endUrl = currentRoom.endUrl || '';
+            const endTitle = endUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || 'Loading...';
+            document.getElementById('endGoal').textContent = `End Goal: ${decodeURIComponent(endTitle)}`;
+            
+            if (currentRoom.players) {
+                updatePlayerStatus(currentRoom.players);
+            }
+        }
+
+        function updatePlayerStatus(players) {
+            console.log('Updating player status:', players);
+            const playerStatus = document.getElementById('playerStatus');
+            const waitingPlayerStatus = document.getElementById('waitingPlayerStatus');
+            
+            if (!playerStatus || !waitingPlayerStatus) {
+                console.error('Player status elements not found');
+                return;
+            }
+
+            // Clear existing badges
+            playerStatus.innerHTML = '';
+            waitingPlayerStatus.innerHTML = '';
+
+            if (!players || players.length === 0) {
+                console.error('No players data available');
+                return;
+            }
+
+            // Create badges for each player
+            players.forEach(player => {
+                const badge = document.createElement('div');
+                badge.className = `player-badge ${player === currentPlayer ? 'current-player' : 'other-player'}`;
+                badge.textContent = player;
+                
+                // Add to both status displays
+                playerStatus.appendChild(badge.cloneNode(true));
+                waitingPlayerStatus.appendChild(badge);
+            });
+        }
+
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+
+            function updateTimer() {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.ceil((turnEndTime - now) / 1000));
+                const timerElement = document.getElementById('timer');
+                if (timerElement) {
+                    timerElement.textContent = `${remaining}s`;
+                }
+
+                if (remaining === 0) {
+                    const timerElement = document.getElementById('timer');
+                    if (timerElement) {
+                        timerElement.classList.add('hidden');
+                    }
+                }
+            }
+
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function loadCurrentPage(url) {
+            console.log('loadCurrentPage called with URL:', url);
+            if (!url || !url.startsWith('https://en.wikipedia.org/')) {
+                console.error('Invalid URL:', url);
+                return;
+            }
+
+            // Add to visited pages if not already there
+            if (!visitedPages.includes(url)) {
+                visitedPages.push(url);
+                updateVisitedPagesList();
+                
+                // Update player's path
+                if (!playerPaths.hasOwnProperty(currentPlayer)) {
+                    playerPaths[currentPlayer] = [];
+                }
+                playerPaths[currentPlayer].push(url);
+            }
+
+            // Show waiting screen while loading
+            toggleGameInterface(false);
+
+            // Make a request to our proxy endpoint
+            const proxyUrl = `/api/wiki-content?url=${encodeURIComponent(url)}`;
+            console.log('Fetching from proxy:', proxyUrl);
+            
+            fetch(proxyUrl)
+            .then(response => {
+                console.log('Proxy response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch page content: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                console.log('Received HTML content, length:', html.length);
+                
+                // Create a temporary div to parse the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+
+                // Get the main content
+                
+                const div = document.createElement('div');
+                div.innerHTML = tempDiv.querySelector('.firstHeading').outerHTML + tempDiv.querySelector('#bodyContent').innerHTML;
+
+                const content =  div;
+                console.log('Found content element:', !!content);
+                if (!content) {
+                    console.error('Could not find content element');
+                    console.log('HTML received:', tempDiv.innerHTML.substring(0, 500));
+                    return;
+                }
+                
+                // Clear existing content
+                gameContent.innerHTML = '';
+                
+                // Create a container for the Wikipedia content
+                const wikiContainer = document.createElement('div');
+                wikiContainer.className = 'wiki-container';
+                wikiContainer.style.cssText = 'visibility: visible; display: block; position: relative; z-index: 1;';
+                
+                // Clone the content
+                const contentClone = content.cloneNode(true);
+                
+                // Process all links in the cloned content
+                const links = contentClone.getElementsByTagName('a');
+                console.log('Found links:', links.length);
+                
+                // Convert to array to avoid live NodeList issues
+                Array.from(links).forEach(link => {
+                    const href = link.getAttribute('href');
+                    
+                    // Remove links that are not Wikipedia article links
+                    if (!href || !href.startsWith('/wiki/') || 
+                        href.includes('Special:') || 
+                        href.includes('File:') || 
+                        href.includes('Help:') ||
+                        href.includes('Template:') ||
+                        href.includes('Category:') ||
+                        href.includes('Portal:') ||
+                        href.includes('Wikipedia:')) {
+                        // Remove the link but keep the text
+                        const text = link.textContent;
+                        const textNode = document.createTextNode(text);
+                        link.parentNode.replaceChild(textNode, link);
+                        return;
+                    }
+
+                    // Create a span that looks like a link
+                    const linkSpan = document.createElement('span');
+                    linkSpan.className = 'wiki-link';
+                    linkSpan.style.cssText = 'color: #0645ad; text-decoration: underline; cursor: pointer; display: inline-block;';
+                    linkSpan.textContent = link.textContent;
+                    
+                    // Store the href as a data attribute
+                    linkSpan.dataset.href = href;
+                    
+                    // Add click handler
+                    linkSpan.onclick = function(e) {
+                        console.log('Link span clicked:', this.textContent);
+                        console.log('Stored href:', this.dataset.href);
+                        e.stopPropagation(); // Prevent event bubbling
+                        
+                        if (hasSelectedLink) {
+                            console.log('Link already selected, ignoring click');
+                            return;
+                        }
+
+                        const fullUrl = 'https://en.wikipedia.org' + this.dataset.href;
+                        console.log('Constructed full URL:', fullUrl);
+                        
+                        // Mark that we've selected a link
+                        hasSelectedLink = true;
+                        
+                        // Show waiting screen for the current player
+                        showWaitingScreen('Waiting for other players...', currentRoom.players.filter(p => p !== currentPlayer));
+                        
+                        // Send the page change message
+                        sendMessage({
+                            type: 'page_change',
+                            url: fullUrl
+                        });
+                    };
+
+                    // Replace the original link with our span
+                    link.parentNode.replaceChild(linkSpan, link);
+                });
+                
+                // Add the processed content to the container
+                wikiContainer.appendChild(contentClone);
+                
+                // Add the container to the game content
+                gameContent.appendChild(wikiContainer);
+                
+                console.log('Content added, container HTML length:', wikiContainer.innerHTML.length);
+                
+                // Force a reflow to ensure styles are applied
+                wikiContainer.offsetHeight;
+                
+                // Update page title if available
+                const pageTitle = tempDiv.querySelector('title');
+                if (pageTitle) {
+                    document.title = pageTitle.textContent;
+                }
+                
+                // Scroll to top of the page
+                window.scrollTo(0, 0);
+                
+                toggleGameInterface(true);
+            })
+            .catch(error => {
+                console.error('Error loading page:', error);
+                // Retry loading after a short delay
+                setTimeout(() => {
+                    console.log('Retrying page load:', url);
+                    loadCurrentPage(url);
+                }, 1000);
+            });
+        }
+
+        function isValidWikipediaUrl(url) {
+            return url.startsWith('https://en.wikipedia.org/wiki/') && 
+                   !url.includes('Special:') && 
+                   !url.includes('File:') && 
+                   !url.includes('Help:') &&
+                   !url.includes('Template:') &&
+                   !url.includes('Category:') &&
+                   !url.includes('Portal:') &&
+                   !url.includes('Wikipedia:');
+        }
+
+        function extractLinks(doc) {
+            console.log('Extracting links from page');
+            const links = [];
+            
+            try {
+                if (!doc) {
+                    console.error('Document is null');
+                    return links;
+                }
+
+                // First try to get the content area
+                const content = doc.getElementById('mw-content-text');
+                if (!content) {
+                    console.error('Could not find content area');
+                    return links;
+                }
+
+                // Get all links in the content area
+                const allLinks = content.getElementsByTagName('a');
+                
+                for (const link of allLinks) {
+                    try {
+                        const href = link.getAttribute('href');
+                        if (href && href.startsWith('/wiki/')) {
+                            const fullUrl = 'https://en.wikipedia.org' + href;
+                            if (isValidWikipediaUrl(fullUrl)) {
+                                links.push(fullUrl);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error processing link:', error);
+                        continue;
+                    }
+                }
+            } catch (error) {
+                console.error('Error extracting links:', error);
+            }
+
+            console.log(`Found ${links.length} valid links`);
+            return links;
+        }
+
+        function sendMessage(message) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                console.log('Sending message:', message);
+                ws.send(JSON.stringify(message));
+            } else {
+                console.error('WebSocket is not open');
+            }
+        }
+
+        function updateWaitingScreen(room) {
+            document.getElementById('currentRoomName').textContent = room.name;
+            document.getElementById('roomIdDisplay').textContent = `Room ID: ${room.id}`;
+            document.getElementById('waitingStartUrl').textContent = room.startUrl;
+            document.getElementById('waitingEndUrl').textContent = room.endUrl;
+            
+            // Update player status
+            const waitingPlayerStatus = document.getElementById('waitingPlayerStatus');
+            waitingPlayerStatus.innerHTML = '';
+            room.players.forEach(player => {
+                const badge = document.createElement('div');
+                badge.className = `player-badge ${player.name === currentPlayer ? 'current-player' : 'other-player'}`;
+                badge.textContent = player.name;
+                waitingPlayerStatus.appendChild(badge);
+            });
+        }
+
+        function updateVisitedPagesList() {
+            const visitedPagesList = document.getElementById('visitedPagesList');
+            if (!visitedPagesList) return;
+
+            const lastThreePages = visitedPages.slice(-3);
+            const remainingCount = Math.max(0, visitedPages.length - 3);
+            
+            const pageTitles = lastThreePages.map(url => {
+                const title = url.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
+                const isRandomSelection = currentRoom?.randomSelections?.[currentPlayer] === url;
+                console.log('Checking random selection:', {
+                    url,
+                    randomSelections: currentRoom?.randomSelections,
+                    currentPlayer,
+                    isRandom: isRandomSelection
+                });
+                return `<span class="path-item ${isRandomSelection ? 'text-red-600 font-semibold' : 'text-blue-600'}" style="${isRandomSelection ? 'color: #dc2626 !important;' : ''}">${decodeURIComponent(title)}</span>`;
+            });
+            
+            let pathHtml = pageTitles.join('<span class="path-arrow">→</span>');
+            pathHtml += `<span class="path-remaining">(+${remainingCount})</span>`;
+            
+            visitedPagesList.innerHTML = pathHtml;
+        }
+
+        function showResults(data) {
+            const resultsScreen = document.getElementById('resultsScreen');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            // Hide game interface
+            toggleGameInterface(false);
+            
+            // Show results screen
+            resultsScreen.style.display = 'flex';
+            
+            // Create results HTML
+            let resultsHtml = '';
+            
+            // Show winners first
+            if (data.winners && data.winners.length > 0) {
+                resultsHtml += '<div class="mb-8">';
+                resultsHtml += '<h3 class="text-xl font-semibold text-green-600 mb-4">Winners:</h3>';
+                data.winners.forEach(winner => {
+                    resultsHtml += createPlayerPathHtml(winner, data.playerPaths[winner], true);
+                });
+                resultsHtml += '</div>';
+            }
+            
+            // Show other players
+            const otherPlayers = Object.keys(data.playerPaths).filter(player => !data.winners.includes(player));
+            if (otherPlayers.length > 0) {
+                resultsHtml += '<div>';
+                resultsHtml += '<h3 class="text-xl font-semibold text-gray-600 mb-4">Other Players:</h3>';
+                otherPlayers.forEach(player => {
+                    resultsHtml += createPlayerPathHtml(player, data.playerPaths[player], false);
+                });
+                resultsHtml += '</div>';
+            }
+            
+            resultsContent.innerHTML = resultsHtml;
+        }
+
+        function createPlayerPathHtml(player, path, isWinner) {
+            const pathItems = path.map(url => {
+                const title = url.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
+                return `<span class="path-item">${decodeURIComponent(title)}</span>`;
+            });
+            
+            return `
+                <div class="mb-6 ${isWinner ? 'bg-green-50 p-4 rounded' : 'bg-gray-50 p-4 rounded'}">
+                    <h4 class="font-semibold ${isWinner ? 'text-green-600' : 'text-gray-600'} mb-2">${player}</h4>
+                    <div class="path-container">
+                        ${pathItems.join('<span class="path-arrow">→</span>')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function showObserverView() {
+            // Hide game interface and header
+            document.getElementById('gameContent').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.querySelector('.game-header').style.display = 'none';
+            
+            // Create observer view if it doesn't exist
+            let observerView = document.getElementById('observerView');
+            if (!observerView) {
+                observerView = document.createElement('div');
+                observerView.id = 'observerView';
+                observerView.className = 'fixed inset-0 bg-white p-4 overflow-auto';
+                document.body.appendChild(observerView);
+            }
+            
+            // Show observer view
+            observerView.style.display = 'block';
+            
+            // Initial update
+            updateObserverView({ room: currentRoom });
+        }
+
+        function updateObserverView(data) {
+            const observerView = document.getElementById('observerView');
+            if (!observerView) return;
+            
+            const room = data.room;
+            if (!room) return;
+            
+            const endTime = data.endTime;
+            const waitingPlayers = data.waitingPlayers || [];
+            const timerExpired = data.timerExpired || false;
+            const randomSelections = room.randomSelections || {};
+            const playerPaths = room.playerPaths || {};
+            const playerStates = room.playerStates || {};
+            
+            // Helper function to normalize URLs for comparison
+            const normalizeUrl = (url) => {
+                if (!url) return '';
+                try {
+                    // Remove any trailing slashes and convert to lowercase
+                    return url.replace(/\/$/, '').toLowerCase();
+                } catch (e) {
+                    console.error('Error normalizing URL:', url, e);
+                    return '';
+                }
+            };
+            
+            // Helper function to safely extract title from URL
+            const getTitleFromUrl = (url) => {
+                if (!url) return '';
+                try {
+                    const parts = url.split('/wiki/');
+                    if (parts.length < 2) return '';
+                    return decodeURIComponent(parts[1].replace(/_/g, ' '));
+                } catch (e) {
+                    console.error('Error processing URL:', url, e);
+                    return '';
+                }
+            };
+            
+            // Update timer if present
+            const timerHtml = endTime ? `
+                <div class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full shadow-lg z-50">
+                    <span class="text-2xl font-bold" id="observerTimer">${Math.ceil((endTime - Date.now()) / 1000)}s</span>
+                </div>
+            ` : '';
+            
+            // Create player paths
+            const playerPathsHtml = Array.from(room.players || []).map(player => {
+                const path = playerPaths[player] || [];
+                const currentState = playerStates[player];
+                const hasSelected = waitingPlayers.includes(player);
+                const isWaiting = !hasSelected;
+                const randomUrl = randomSelections[player];
+                
+                // Only show colors and labels if there's an active selection phase (endTime exists)
+                let boxColor = 'bg-white';
+                let label = '';
+                
+                if (endTime) {
+                    if (isWaiting) {
+                        boxColor = 'bg-yellow-50';
+                        label = 'Waiting...';
+                    } else if (hasSelected) {
+                        boxColor = 'bg-green-50';
+                        label = 'Selected';
+                    }
+                }
+                
+                return `
+                    <div class="mb-4 ${boxColor} p-4 rounded-lg shadow transition-colors duration-300">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-lg font-semibold">${player}</h3>
+                            ${label ? `
+                                <span class="px-3 py-1 rounded-full ${boxColor === 'bg-yellow-50' ? 'bg-yellow-200 text-yellow-800' : 
+                                                                   boxColor === 'bg-green-50' ? 'bg-green-200 text-green-800' : 
+                                                                   'bg-red-200 text-red-800'} text-sm">
+                                    ${label}
+                                </span>
+                            ` : ''}
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            ${path.map((url, index) => {
+                                if (!url) return '';
+                                const title = url.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
+                                const isCurrent = normalizeUrl(url) === normalizeUrl(currentState);
+                                const isLast = index === path.length - 1;
+                                const isRandomSelection = normalizeUrl(url) === normalizeUrl(randomUrl);
+                                console.log('URL:', url, 'Random URL:', randomUrl, 'Is Random:', isRandomSelection);
+                                return `
+                                    <div class="flex items-center">
+                                        <div class="px-2 py-1 rounded-full ${isRandomSelection ? 'bg-red-200 text-red-800' : 
+                                                                   isCurrent ? 'bg-blue-200 text-blue-800' : 
+                                                                   'bg-gray-200 text-gray-800'} text-sm">
+                                            ${decodeURIComponent(title)}
+                                        </div>
+                                        ${!isLast ? '<div class="mx-1 text-gray-400 text-sm">→</div>' : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Update observer view content
+            observerView.innerHTML = `
+                <div class="max-w-4xl mx-auto">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold">${room.name || ''}</h2>
+                    </div>
+                    
+                    <div class="mb-8 p-4 bg-gray-50 rounded-lg shadow">
+                        <div class="grid grid-cols-3 gap-4 text-center items-center">
+                            <div>
+                                <p class="text-2xl font-semibold text-blue-600">${getTitleFromUrl(room.startUrl)}</p>
+                            </div>
+                            <div class="text-3xl text-gray-400">→</div>
+                            <div>
+                                <p class="text-2xl font-semibold text-blue-600">${getTitleFromUrl(room.endUrl)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${timerHtml}
+                    
+                    <div class="mt-8">
+                        ${playerPathsHtml}
+                    </div>
+                </div>
+            `;
+            
+            // Start timer if present
+            if (endTime) {
+                startObserverTimer(endTime);
+            }
+        }
+
+        function startObserverTimer(endTime) {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            function updateTimer() {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
+                const timerElement = document.getElementById('observerTimer');
+                if (timerElement) {
+                    timerElement.textContent = `${remaining}s`;
+                }
+                
+                if (remaining === 0) {
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                }
+            }
+            
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+    </script>
+</body>
+</html> 

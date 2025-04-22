@@ -1,0 +1,23 @@
+{
+  "name": "wikirace",
+  "version": "1.0.0",
+  "description": "A Wikipedia race game",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "scrape": "node src/scripts/scrape.js",
+    "clean-links": "node src/scripts/clean_links.js",
+    "setup-database": "node src/scripts/setup_database.js",
+    "count-links": "node src/scripts/count_links.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-ws": "^5.0.2",
+    "uuid4": "^2.0.3",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "sqlite3": "^5.1.7"
+  }
+}
