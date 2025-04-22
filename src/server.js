@@ -9,6 +9,9 @@ const db = require('./db');
 const rooms = {};
 const roomCleanupTimers = new Map();
 
+// Get port from environment variable or use 3000 for local development
+const port = process.env.PORT || 3000;
+
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
@@ -855,6 +858,6 @@ function scheduleRoomCleanup(roomId) {
     roomCleanupTimers.set(roomId, timer);
 }
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
