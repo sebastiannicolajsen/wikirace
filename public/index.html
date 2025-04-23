@@ -221,27 +221,12 @@
         <div id="roomCreationResult" class="mt-4"></div>
     </div>
 
+    <script src="/js/websocket.js"></script>
     <script>
-        let ws = null;
         let currentRoom = null;
         let currentPlayer = null;
         let currentRole = null;
         let selectedRole = 'player'; // Default role
-        let isProduction = false;
-        let serverPort = null;
-
-        // Fetch environment configuration
-        async function fetchConfig() {
-            try {
-                const response = await fetch('/api/config');
-                const config = await response.json();
-                isProduction = config.isProduction;
-                serverPort = config.port || serverPort;
-                console.log('Environment config:', { isProduction, serverPort });
-            } catch (error) {
-                console.error('Error fetching config:', error);
-            }
-        }
 
         // Handle URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -373,7 +358,7 @@
                     currentRole = selectedRole;
                     
                     // Connect to the room
-                    connectToRoom(data.room.id, data.playerName, selectedRole);
+                    WebSocketManager.connectToRoom(data.room.id, data.playerName, selectedRole, handleMessage);
                     
                 } catch (error) {
                     console.error('Error creating room:', error);
@@ -397,64 +382,26 @@
             }
 
             // Connect to the room
-            connectToRoom(roomId, playerName, 'player');
+            WebSocketManager.connectToRoom(roomId, playerName, 'player', handleMessage);
         });
 
         // Leave Room Button Handler
         document.getElementById('leaveRoom').addEventListener('click', () => {
-            if (ws) {
-                ws.close();
+            if (WebSocketManager.ws) {
+                WebSocketManager.ws.close();
             }
             showSection('initialSelection');
         });
 
         // Start Game Button Handler
         document.getElementById('startGame').addEventListener('click', () => {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'start_game' }));
+            if (WebSocketManager.ws && WebSocketManager.ws.readyState === WebSocket.OPEN) {
+                WebSocketManager.sendMessage({ type: 'start_game' });
+            } else {
+                console.error('WebSocket is not open');
+                alert('Connection lost. Please try refreshing the page.');
             }
         });
-
-        function connectToRoom(roomId, playerName, role) {
-            console.log('Connecting to room with role:', role); // Debug log
-            fetchConfig().then(() => {
-                // Determine WebSocket protocol and port based on environment
-                const protocol = isProduction ? 'wss:' : 'ws:';
-                const port = isProduction ? '' : `:${serverPort}`;
-                const wsUrl = `${protocol}//${window.location.host}/game/${roomId}`;
-                console.log('Connecting to WebSocket URL:', wsUrl);
-                
-                ws = new WebSocket(wsUrl);
-
-                ws.onopen = () => {
-                    console.log('WebSocket connected');
-                    // Send join message immediately after connection
-                    const joinMessage = { 
-                        type: 'join',
-                        playerName: playerName,
-                        role: role
-                    };
-                    console.log('Sending join message:', joinMessage);
-                    ws.send(JSON.stringify(joinMessage));
-                };
-
-                ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    console.log('WebSocket message received:', data);
-                    handleMessage(data);
-                };
-
-                ws.onclose = () => {
-                    console.log('WebSocket closed');
-                    showSection('initialSelection');
-                };
-
-                ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    alert('Failed to connect to room');
-                };
-            });
-        }
 
         function handleMessage(data) {
             console.log('Handling message:', data);
@@ -469,13 +416,16 @@
                     showSection('waitingRoom');
                     break;
                 case 'player_joined':
-                    currentRoom.players = data.players;
-                    currentRoom.observers = data.observers;
+                    currentRoom = data.room;
+                    // Update countdown display in rules when new player joins
+                    const newCountdownTime = data.room.countdownTime || 30;
+                    console.log('Updating countdown time to:', newCountdownTime);
+                    document.getElementById('countdownDisplay').textContent = newCountdownTime;
                     updateWaitingRoom(data.room);
                     break;
                 case 'player_left':
-                    currentRoom.players = data.players;
-                    currentRoom.observers = data.observers;
+                case 'player_disconnected':
+                    currentRoom = data.room;
                     updateWaitingRoom(data.room);
                     break;
                 case 'room_closed':

@@ -230,8 +230,9 @@
 
     <div class="timer hidden" id="timer">30s</div>
 
+    <script src="/js/websocket.js"></script>
+    <script src="/js/game.js"></script>
     <script>
-        let ws = null;
         let currentRoom = null;
         let currentPlayer = null;
         let turnEndTime = null;
@@ -244,20 +245,7 @@
         let attemptCount = 0;
         let playerPaths = {};
         let isObserver = false;
-        let isProduction = false;
-        let serverPort = 3000;
-
-        // Fetch environment configuration
-        async function fetchConfig() {
-            try {
-                const response = await fetch('/api/config');
-                const config = await response.json();
-                isProduction = config.isProduction;
-                console.log('Environment config:', { isProduction });
-            } catch (error) {
-                console.error('Error fetching config:', error);
-            }
-        }
+        let currentRole = null;
 
         // Initialize from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -270,156 +258,10 @@
         }
 
         // Connect to WebSocket
-        async function connectToRoom() {
-            await fetchConfig(); // Ensure we have the latest config
-            console.log('Connecting to room:', roomId, 'as player:', playerName, 'with role:', role);
-            
-            // Determine WebSocket protocol and port based on environment
-            const protocol = isProduction ? 'wss:' : 'ws:';
-            const port = isProduction ? '' : `:${serverPort}`;
-            const wsUrl = `${protocol}//${window.location.host}${port}/game/${roomId.toUpperCase()}`;
-            console.log('Connecting to WebSocket URL:', wsUrl);
-            
-            ws = new WebSocket(wsUrl);
-
-            ws.onopen = () => {
-                console.log('WebSocket connection established');
-                // Send join message immediately
-                const joinMessage = { 
-                    type: 'join',
-                    playerName: playerName,
-                    role: role || 'player' // Default to player if role not specified
-                };
-                console.log('Sending join message:', joinMessage);
-                ws.send(JSON.stringify(joinMessage));
-            };
-
-            ws.onmessage = (event) => {
-                console.log('Received message:', event.data);
-                try {
-                    const data = JSON.parse(event.data);
-                    console.log("__DATA", data);
-                    handleMessage(data);
-                } catch (error) {
-                    console.error('Error parsing message:', error);
-                }
-            };
-
-            ws.onclose = (event) => {
-                console.log('WebSocket connection closed:', event.code, event.reason);
-                // Only redirect if the game hasn't started yet
-                if (!currentRoom || currentRoom.state !== 'playing') {
-                    // Parse the error message to determine what went wrong
-                    const errorMessage = event.reason;
-                    if (errorMessage.includes('Room not found')) {
-                        // Keep player name, clear room ID
-                        window.location.href = `/?error=room_not_found&playerName=${encodeURIComponent(playerName)}`;
-                    } else if (errorMessage.includes('Player name already taken')) {
-                        // Keep room ID, clear player name
-                        window.location.href = `/?error=name_taken&roomId=${encodeURIComponent(roomId)}`;
-                    } else if (errorMessage.includes('Valid player name is required')) {
-                        // Keep room ID, clear player name
-                        window.location.href = `/?error=invalid_name&roomId=${encodeURIComponent(roomId)}`;
-                    } else {
-                        // Generic error, keep both fields
-                        window.location.href = `/?error=connection_failed&roomId=${encodeURIComponent(roomId)}&playerName=${encodeURIComponent(playerName)}`;
-                    }
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                // Only redirect if the game hasn't started yet
-                if (!currentRoom || currentRoom.state !== 'playing') {
-                    // Keep existing parameters but show error
-                    window.location.href = `/?error=connection_failed&roomId=${encodeURIComponent(roomId)}&playerName=${encodeURIComponent(playerName)}`;
-                }
-            };
-        }
-
-        // Start the connection
-        connectToRoom();
-
-        function toggleGameInterface(showGame) {
-            console.log('toggleGameInterface called with showGame:', showGame);
-            const waitingScreen = document.getElementById('waitingScreen');
-            const gameFrame = document.getElementById('gameFrame');
-            const playerStatus = document.getElementById('playerStatus');
-            const timer = document.getElementById('timer');
-            
-            if (showGame) {
-                if (waitingScreen) {
-                    console.log('Hiding waiting screen');
-                    waitingScreen.style.display = 'none';
-                }
-                if (gameFrame) {
-                    console.log('Showing game frame');
-                    gameFrame.style.display = 'block';
-                }
-                if (playerStatus) {
-                    playerStatus.classList.add('hidden');
-                }
-                if (timer) {
-                    timer.classList.add('hidden');
-                }
-            } else {
-                if (waitingScreen) {
-                    console.log('Showing waiting screen');
-                    waitingScreen.style.display = 'flex';
-                }
-                if (gameFrame) {
-                    console.log('Hiding game frame');
-                    gameFrame.style.display = 'none';
-                }
-            }
-        }
-
-        function showWaitingScreen(message, waitingForPlayers) {
-            console.log('showWaitingScreen called with message:', message, 'waiting for:', waitingForPlayers);
-            const waitingScreen = document.getElementById('waitingScreen');
-            const waitingText = document.createElement('div');
-            waitingText.className = 'text-center mb-4';
-            
-            // Format the end URL for display
-            const endUrl = currentRoom.endUrl;
-            const endTitle = endUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || '';
-            const formattedEndUrl = decodeURIComponent(endTitle);
-            
-            waitingText.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4">${message}</h2>
-                <p class="text-gray-600 mb-4">Still waiting for: ${waitingForPlayers.join(', ')}</p>
-                <div class="mb-4">
-                    <p class="text-gray-600 font-semibold">Current: <span class="text-blue-600">${decodeURIComponent(currentRoom.currentUrl.split('/wiki/').pop()?.replace(/_/g, ' ') || '')}</span></p>
-                    <p class="text-gray-600 font-semibold">Goal: <span class="text-blue-600">${formattedEndUrl}</span></p>
-                    <p class="text-gray-600 text-sm">${endUrl}</p>
-                </div>
-            `;
-            
-            waitingScreen.innerHTML = '';
-            waitingScreen.appendChild(waitingText);
-            console.log('Setting waiting screen display to flex');
-            waitingScreen.style.display = 'flex';
-
-            // If the message is "We picked for you!", hide the screen after 10 seconds
-            if (message === 'We picked for you!') {
-                // First hide the game interface
-                toggleGameInterface(false);
-                
-                // Then set a timeout to show it again after 10 seconds
-                setTimeout(() => {
-                    waitingScreen.style.display = 'none';
-                    toggleGameInterface(true);
-                }, 10000);
-            } else {
-                // For other messages, just hide the game interface
-                toggleGameInterface(false);
-            }
-        }
+        WebSocketManager.connectToRoom(roomId, playerName, role, handleMessage);
 
         function handleMessage(data) {
             console.log('Handling message:', data);
-            const isObserver = role === 'observer';
-            
             switch (data.type) {
                 case 'room_info':
                     currentRoom = data.room;
@@ -559,12 +401,12 @@
                             // Some players are still selecting
                             if (data.waitingPlayers.includes(currentPlayer)) {
                                 // Current player is waiting, show waiting screen
-                                showWaitingScreen('Waiting for other players...', currentRoom.players.filter(p => p !== currentPlayer));
-                                toggleGameInterface(false);
+                                GameManager.showWaitingScreen('Waiting for other players...', currentRoom.players.filter(p => p !== currentPlayer));
+                                GameManager.toggleGameInterface(false);
                             } else {
                                 // Current player needs to select
-                                showWaitingScreen('Select a link!', data.waitingPlayers);
-                                toggleGameInterface(true);
+                                GameManager.showWaitingScreen('Select a link!', data.waitingPlayers);
+                                GameManager.toggleGameInterface(true);
                                 
                                 // Ensure timer is shown for players who need to select
                                 if (timer && data.endTime) {
@@ -579,7 +421,7 @@
                         } else if (data.allPlayersSelected) {
                             attemptCount++;
                             document.getElementById('waitingScreen').style.display = 'none';
-                            toggleGameInterface(true);
+                            GameManager.toggleGameInterface(true);
                             
                             // Get the current player's URL from playerStates
                             if (currentRoom?.playerStates) {
@@ -962,9 +804,9 @@
         }
 
         function sendMessage(message) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
+            if (WebSocketManager.ws && WebSocketManager.ws.readyState === WebSocket.OPEN) {
                 console.log('Sending message:', message);
-                ws.send(JSON.stringify(message));
+                WebSocketManager.ws.send(JSON.stringify(message));
             } else {
                 console.error('WebSocket is not open');
             }

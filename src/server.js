@@ -639,14 +639,11 @@ app.ws("/game/:roomId", function (ws, req) {
                 if (playerName) {
                     // Only remove the player if the game hasn't started
                     if (room.state === 'waiting') {
-                        console.log(`Game hasn't started, removing ${isObserver ? 'observer' : 'player'} ${playerName} from room ${roomId}`);
+                        console.log(`Game hasn't started, marking ${isObserver ? 'observer' : 'player'} ${playerName} as disconnected`);
                         if (isObserver) {
-                            room.observers.delete(playerName);
+                            room.observers.set(playerName, null);
                         } else {
-                            room.players.delete(playerName);
-                            room.playerStates.delete(playerName);
-                            room.playerPaths.delete(playerName);
-                            room.waitingForPlayers.delete(playerName);
+                            room.players.set(playerName, null);
                         }
                         
                         // If the creator leaves, shut down the game
@@ -683,6 +680,28 @@ app.ws("/game/:roomId", function (ws, req) {
                             // Schedule room cleanup if it's empty
                             if (isRoomEmpty(room)) {
                                 scheduleRoomCleanup(roomId);
+                            } else {
+                                // Broadcast player disconnected message
+                                broadcastToRoom(room, {
+                                    type: "player_disconnected",
+                                    playerName: playerName,
+                                    players: Array.from(room.players.keys()),
+                                    observers: Array.from(room.observers.keys()),
+                                    room: {
+                                        id: room.id,
+                                        name: room.name,
+                                        startUrl: room.startUrl,
+                                        endUrl: room.endUrl,
+                                        players: Array.from(room.players.keys()),
+                                        observers: Array.from(room.observers.keys()),
+                                        state: room.state,
+                                        creator: room.creator,
+                                        currentUrl: room.currentUrl,
+                                        playerStates: Object.fromEntries(room.playerStates),
+                                        playerPaths: Object.fromEntries(room.playerPaths),
+                                        countdownTime: room.countdownTime
+                                    }
+                                });
                             }
                         }
                     } else {
@@ -699,7 +718,21 @@ app.ws("/game/:roomId", function (ws, req) {
                             type: "player_disconnected",
                             playerName: playerName,
                             players: Array.from(room.players.keys()),
-                            observers: Array.from(room.observers.keys())
+                            observers: Array.from(room.observers.keys()),
+                            room: {
+                                id: room.id,
+                                name: room.name,
+                                startUrl: room.startUrl,
+                                endUrl: room.endUrl,
+                                players: Array.from(room.players.keys()),
+                                observers: Array.from(room.observers.keys()),
+                                state: room.state,
+                                creator: room.creator,
+                                currentUrl: room.currentUrl,
+                                playerStates: Object.fromEntries(room.playerStates),
+                                playerPaths: Object.fromEntries(room.playerPaths),
+                                countdownTime: room.countdownTime
+                            }
                         });
 
                         // Check if room is empty after disconnection
