@@ -1,55 +1,46 @@
-<div class="subpage">
-  <div id="globeContainer"></div>
+<div class="container">
+  <div class="card">
+    <div class="game-content">
+      <div class="finished-message">
+        <h2>Game Over!</h2>
+        <div id="winnerInfo" class="winner-details"></div>
+      </div>
+
+      <div class="button-group" style="margin-top: 2rem; display: flex; justify-content: center">
+        <button id="returnHomeButton" class="button">Return to Home</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
-html, body {
-  width: 100vw;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-.subpage {
-  display: block !important;
-  position: relative;
-  z-index: 1;
-  min-height: 100vh;
-  width: 100vw;
-  margin: 0;
-  padding: 0;
-  background: none !important;
-}
-#globeContainer {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 10;
-  background: #f8f9fa;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
+.finished-message {
+  text-align: center;
+  padding: 2rem;
 }
 
-@media (max-width: 600px) {
-  #globeContainer {
-    width: 100vw;
-    height: 100vh;
-    min-height: 100dvh;
-  }
+.winner-details {
+  font-size: 1.2rem;
+  margin-top: 1rem;
+  color: #333;
 }
 
-.path-label {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 4px 8px;
+.button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
   border-radius: 4px;
-  font-size: 12px;
-  pointer-events: none;
-  white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transform: translate(-50%, -50%);
-  z-index: 1000;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.button:hover {
+  background-color: #2980b9;
+}
+
+.button:active {
+  background-color: #2472a4;
 }
 </style> 

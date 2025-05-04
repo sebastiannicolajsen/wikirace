@@ -163,7 +163,6 @@ function resetState() {
 }
 
 export async function loadGameState(state, gameContentContainer) { 
-    console.log('State update:', state.state, 'version:', state.version);
     // Check state version first
     if (state.version && state.version < lastReceivedStateVersion) {
         console.log(`Ignoring outdated state version ${state.version} (current: ${lastReceivedStateVersion})`);
@@ -271,16 +270,6 @@ export async function loadGameState(state, gameContentContainer) {
             position: relative;
             z-index: 1;
         `;
-
-        // Hide header if in finished state, show otherwise
-        const headerContainer = document.querySelector('.fixed-header-container');
-        if (headerContainer) {
-            if (state.state === 'finished') {
-                headerContainer.style.display = 'none';
-            } else {
-                headerContainer.style.display = '';
-            }
-        }
     } catch (error) {
         console.error('Error during state update:', error);
         subpageElement.innerHTML = `<div class="error">Error loading state: ${error.message}</div>`;

@@ -340,39 +340,82 @@ function closeCurrentPopup() {
 // Function to save pending selections to localStorage
 function savePendingSelections() {
     if (pendingSelections.length > 0) {
+        console.log('Saving pending selections:', JSON.stringify(pendingSelections, null, 2));
         localStorage.setItem('pendingSelections', JSON.stringify(pendingSelections));
     } else {
+        console.log('No pending selections to save, clearing localStorage');
         localStorage.removeItem('pendingSelections');
     }
 }
 
 // Function to load pending selections from localStorage
 function loadPendingSelections() {
-    const savedSelections = localStorage.getItem('pendingSelections');
-    if (savedSelections) {
-        pendingSelections = JSON.parse(savedSelections);
-        processLoadedSelections();
-    }
-}
+    const saved = localStorage.getItem('pendingSelections');
+    console.log('Loading pending selections for player:', websocketManager.playerName);
 
-function processLoadedSelections() {
-    pendingSelections.forEach(selection => {
-        if (selection.playerName === websocketManager.playerName) {
-            showSelectionPopup(selection.playerName, selection.urls);
+    if (saved) {
+        console.log('Found saved selections, loading them');
+        pendingSelections = JSON.parse(saved);
+        // If we have pending selections, process them
+        if (pendingSelections.length > 0) {
+            console.log('Processing loaded selections:', JSON.stringify(pendingSelections, null, 2));
+            processNextSelection();
         }
-    });
-}
-
-function processSelection(selection, urls) {
-    if (selection.playerName === websocketManager.playerName) {
-        showSelectionPopup(selection.playerName, urls);
+    } else {
+        console.log('No saved selections found');
+        pendingSelections = [];
     }
 }
 
-function showSelectionPopup(playerName, urls) {
+// Function to process next selection
+function processNextSelection() {
+    if (pendingSelections.length === 0) {
+        // If we've processed all selections, send the response
+        if (currentSelections.length > 0) {
+            websocketManager.sendSelectForMissingPlayersResponse(currentSelections);
+            currentSelections = []; // Clear selections after sending
+            localStorage.removeItem('pendingSelections'); // Clear saved selections
+        }
+        return;
+    }
+
+    closeCurrentPopup();
+
+    const selection = pendingSelections[0];
+    console.log('Processing selection:', JSON.stringify(selection, null, 2));
+    const urls = selection.urls;
+    console.log('URLs for selection:', JSON.stringify(urls, null, 2));
+    if (urls && urls.length > 0) {
+        showSelectionPopup(selection.playerName, urls, (selectedUrl) => {
+            // Store the selection
+            currentSelections.push({
+                playerName: selection.playerName,
+                selectedUrl: selectedUrl
+            });
+            
+            // Remove the processed selection
+            pendingSelections.shift();
+            // Save updated pending selections
+            savePendingSelections();
+            
+            // Process next selection if any
+            processNextSelection();
+        });
+    } else {
+        console.error('No URLs found in selection:', selection);
+    }
+}
+
+// Function to show selection popup for missing player
+function showSelectionPopup(playerName, urls, onSelect) {
+    console.log('Showing selection popup for', playerName, 'with URLs:', JSON.stringify(urls, null, 2));
+    
+    // Create URL list HTML
     const urlArray = Array.isArray(urls) ? urls : [urls];
+    console.log('Processing URL array:', JSON.stringify(urlArray, null, 2));
 
     if (urlArray.length === 0) {
+        console.error('No URLs to display in popup');
         return;
     }
 
@@ -411,6 +454,7 @@ function showSelectionPopup(playerName, urls) {
 
     urlArray.forEach(url => {
         if (!url) {
+            console.warn('Skipping null/undefined URL');
             return;
         }
         const urlItem = document.createElement('div');
@@ -434,6 +478,7 @@ function showSelectionPopup(playerName, urls) {
         urlItem.addEventListener('click', () => {
             websocketManager.sendSelectionForOthers([url]);
             closeCurrentPopup();
+            if (onSelect) onSelect(url);
         });
         urlList.appendChild(urlItem);
     });
@@ -582,7 +627,7 @@ export async function handleStateUpdate(state, subpageElement) {
                     // Close any existing popup first
                     closeCurrentPopup();
                     // Then show our selection popup
-                    processLoadedSelections();
+                    loadPendingSelections();
                 }
             }
         }
@@ -665,12 +710,16 @@ window.addEventListener('request-random-urls', (event) => {
 // Add event listener for select-for-missing-players
 window.addEventListener('select_for_missing_players', (event) => {
     const selections = event.detail.selections;
+    console.log('select_for_missing_players event received by player:', websocketManager.playerName);
+    
     if (selections && selections.length > 0) {
         // Store selections and start processing
         pendingSelections = [...selections];
         // Save pending selections
         savePendingSelections();
-        processLoadedSelections();
+        console.log('Stored pending selections:', JSON.stringify(pendingSelections, null, 2));
+        // Process the first selection immediately
+        processNextSelection();
     }
 });
 
