@@ -72,15 +72,40 @@ function stopTimer() {
 }
 
 async function fetchWikiContent(url) {
-    try {
-        const response = await fetch(`/api/wiki-content?url=${encodeURIComponent(url)}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch Wikipedia content');
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+        try {
+            const response = await fetch(`/api/wiki-content?url=${encodeURIComponent(url)}`, {
+                headers: {
+                    'Accept': 'text/html',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch Wikipedia content: ${response.status}`);
+            }
+            
+            const content = await response.text();
+            if (!content) {
+                throw new Error('Empty content received');
+            }
+            
+            return content;
+        } catch (error) {
+            console.error(`Attempt ${retryCount + 1} failed:`, error);
+            retryCount++;
+            
+            if (retryCount === maxRetries) {
+                throw error;
+            }
+            
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
         }
-        const content = await response.text();
-        return content;
-    } catch (error) {
-        throw error;
     }
 }
 
@@ -123,6 +148,9 @@ function processWikiContent(content) {
         affectedLinks = shuffled.slice(0, numToAffect);
     }
 
+    // Optimize for mobile
+    const isMobile = window.innerWidth <= 768;
+    
     links.forEach(link => {
         const href = link.getAttribute('href');
         if (!href) return;
@@ -143,7 +171,16 @@ function processWikiContent(content) {
             } else if (!selectedUrls.has(fullUrl)) {
                 // Add to available URLs if not already selected and not affected
                 availableUrls.add(fullUrl);
-                link.setAttribute('onclick', `event.preventDefault(); window.websocketManager.sendSelectLink('${fullUrl}');`);
+                
+                // Optimize click handling for mobile
+                if (isMobile) {
+                    link.setAttribute('onclick', `event.preventDefault(); event.stopPropagation(); window.websocketManager.sendSelectLink('${fullUrl}');`);
+                    // Add touch feedback
+                    link.style.padding = '0.5rem';
+                    link.style.margin = '0.25rem 0';
+                } else {
+                    link.setAttribute('onclick', `event.preventDefault(); window.websocketManager.sendSelectLink('${fullUrl}');`);
+                }
             } else {
                 // If URL has been selected, make it look disabled
                 link.style.opacity = '0.5';
