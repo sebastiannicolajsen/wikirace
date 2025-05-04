@@ -188,7 +188,7 @@ function setupFinishedPage(state, subpageElement) {
     dotsContainer.innerHTML = '';
     
     // Set room name and URLs
-    const roomName = subpageElement.querySelector('.room-name');
+    const roomName = subpageElement.querySelector('.game-title');
     const startUrl = subpageElement.querySelector('.start-url');
     const endUrl = subpageElement.querySelector('.end-url');
     const restartButton = subpageElement.querySelector('.restart-button');
@@ -221,8 +221,9 @@ function setupFinishedPage(state, subpageElement) {
     
     // Get all players including surrendered ones
     const allPlayers = [...state.players];
-    if (state.surrenderedPlayers && state.surrenderedPlayers instanceof Map) {
-        const surrenderedPlayers = Array.from(state.surrenderedPlayers.entries()).map(([name, data]) => ({
+    if (state.surrenderedPlayers) {
+        // Handle surrendered players as a plain object
+        const surrenderedPlayers = Object.entries(state.surrenderedPlayers).map(([name, data]) => ({
             name,
             path: data.path || []
         }));

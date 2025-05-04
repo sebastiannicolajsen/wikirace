@@ -11,6 +11,7 @@ const {
 const { router: roomRouter, rooms } = require("./roomManager");
 const { getWikiContent } = require("./wikiProxy");
 const { generateRoomQRCode } = require("./qrCodeManager");
+const { getGameState } = require("./gameStateManager");
 
 // Get port from environment variable or use 3000 for local development
 const port = process.env.PORT || 3000;
@@ -233,9 +234,19 @@ apiRouter.ws("/ws/:roomId", (ws, req) => {
         if (!result) {
           ws.close(1000, "Connection attempt failed");
         }
+      } else if (data.type === "status") {
+        // Handle status request - send current game state only to requesting player
+        const room = rooms.get(roomId);
+        if (room) {
+          const gameState = getGameState(room);
+          ws.send(JSON.stringify({
+            type: 'game_state',
+            state: gameState
+          }));
+        }
       } else {
         // Handle game-related messages
-          handleGameFlowMessage(roomId, data.type, data);
+        handleGameFlowMessage(roomId, data.type, data);
       }
     } catch (error) {
       console.error(`[Room ${roomId}] Error handling message:`, error);

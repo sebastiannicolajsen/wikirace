@@ -17,6 +17,8 @@ let pendingSelections = []; // Track pending selections for missing players
 let currentSelections = []; // Track current selections being made
 let currentPlayerUrl = null; // Track the current player's URL
 let isSelectionChooser = false; // Track if this player is the one who should make selections
+let contentCheckTimer = null; // Track content check timer
+let contentCheckAttempts = 0; // Track number of content check attempts
 
 // --- Timer Management ---
 const TIMER_ELEMENT_ID = 'gameTimer';
@@ -100,6 +102,11 @@ async function fetchWikiContent(url) {
             retryCount++;
             
             if (retryCount === maxRetries) {
+                // If all retries failed, request a status update from the server
+                console.log('All retries failed, requesting status update from server');
+                websocketManager.sendMessage({ type: 'status' });
+                // Refresh the window after sending the status message
+                window.location.reload();
                 throw error;
             }
             
@@ -565,6 +572,28 @@ function showSelectionPopup(playerName, urls, onSelect) {
     `;
 }
 
+// Function to check subpage content and request status if empty
+function checkSubpageContent(subpageElement) {
+    if (!subpageElement || contentCheckAttempts >= 3) return;
+
+    // Check if subpage is empty or only contains loading message
+    const isEmpty = !subpageElement.children.length || 
+                   (subpageElement.children.length === 1 && 
+                    subpageElement.children[0].classList.contains('loading'));
+
+    if (isEmpty) {
+        console.log(`Subpage is empty after ${contentCheckAttempts + 1} attempts, requesting status update`);
+        websocketManager.sendMessage({ type: 'status' });
+        contentCheckAttempts++;
+
+        // Schedule next check with exponential backoff starting from 2 seconds
+        if (contentCheckAttempts < 3) {
+            const delay = Math.pow(2, contentCheckAttempts) * 2000; // 2s, 4s, 8s
+            contentCheckTimer = setTimeout(() => checkSubpageContent(subpageElement), delay);
+        }
+    }
+}
+
 // Main state update handler
 export async function handleStateUpdate(state, subpageElement) {
     if (!state || !subpageElement) {
@@ -572,6 +601,15 @@ export async function handleStateUpdate(state, subpageElement) {
     }
 
     try {
+        // Only reset content check state if we're changing states and not in running state
+        if (currentState && currentState.state !== state.state && state.state !== 'running') {
+            if (contentCheckTimer) {
+                clearTimeout(contentCheckTimer);
+                contentCheckTimer = null;
+            }
+            contentCheckAttempts = 0;
+        }
+
         // Store current state
         currentState = state;
 
@@ -581,10 +619,18 @@ export async function handleStateUpdate(state, subpageElement) {
             throw new Error('Could not determine current URL');
         }
 
-        // Only fetch and process content if the URL has changed
-        if (currentUrl !== currentPlayerUrl) {
+        // Check if we need to load content (either URL changed or no content loaded yet)
+        const needsContentLoad = currentUrl !== currentPlayerUrl || 
+                               !subpageElement.children.length || 
+                               (subpageElement.children.length === 1 && 
+                                subpageElement.children[0].classList.contains('loading'));
+
+        if (needsContentLoad) {
             // Update current player URL
             currentPlayerUrl = currentUrl;
+
+            // Show loading state
+            subpageElement.innerHTML = '<div class="loading">Loading content...</div>';
 
             // Fetch and process content
             try {
@@ -594,7 +640,13 @@ export async function handleStateUpdate(state, subpageElement) {
                 // Update subpage content
                 subpageElement.innerHTML = '';
                 subpageElement.appendChild(processedContent);
+
+                // Start content check timer if in running state
+                if (state.state === 'running') {
+                    contentCheckTimer = setTimeout(() => checkSubpageContent(subpageElement), 2000);
+                }
             } catch (error) {
+                console.error('Error loading content:', error);
                 // Show error message in subpage
                 subpageElement.innerHTML = `
                     <div style="padding: 2rem; text-align: center;">
@@ -602,6 +654,11 @@ export async function handleStateUpdate(state, subpageElement) {
                         <p>Could not load the Wikipedia page. Please try again.</p>
                     </div>
                 `;
+
+                // Start content check timer if in running state
+                if (state.state === 'running') {
+                    contentCheckTimer = setTimeout(() => checkSubpageContent(subpageElement), 2000);
+                }
             }
         }
 

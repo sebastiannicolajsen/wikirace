@@ -93,12 +93,14 @@
         position: relative;
         min-height: 100vh;
         overflow: hidden;
+        padding-top: 40px; /* Reduced padding to account for header height */
       }
 
       /* Debug styles to make sure animations are visible */
       #gameContentContainer .subpage {
         background: white;
         z-index: 1;
+        padding-top: 10px; /* Reduced padding for subpage content */
       }
 
       #gameContentContainer .subpage.active {
@@ -195,8 +197,11 @@
               console.error("#gameContentContainer or #timerContainer not found before loading game state - unexpected!");
               return;
           }
-          
 
+          // Reset scroll position when loading new state
+          window.scrollTo(0, 0);
+          gameContentContainer.scrollTop = 0;
+          
           // Always update the game state
           try {
               await loadGameState(state, gameContentContainer);

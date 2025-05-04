@@ -10,15 +10,59 @@ let isPageReload = false;
 // Track the last received state version
 let lastReceivedStateVersion = 0;
 
+// Track state initialization
+let isStateInitialized = false;
+
 // Set reload flag on unload
 window.addEventListener('unload', () => {
     localStorage.setItem('isPageReload', 'true');
 });
 
-// Check for reload flag on load
+// Check for page reload on load
 window.addEventListener('load', () => {
     isPageReload = localStorage.getItem('isPageReload') === 'true';
+    localStorage.removeItem('isPageReload');
+    
+    // If this is a reload, clear all state
+    if (isPageReload) {
+        console.log('Page reload detected, clearing all state');
+        clearAllState();
+    }
 });
+
+// Function to clear all state
+function clearAllState() {
+    // Clear all localStorage items
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('game_') || 
+            key === 'currentGameState' || 
+            key === 'currentWikiLink' || 
+            key === 'selectedWikiLink' || 
+            key === 'pendingSelections' || 
+            key === 'selectedUrls' || 
+            key === 'currentIndex' || 
+            key === 'isPageReload') {
+            localStorage.removeItem(key);
+        }
+    });
+
+    // Clear all sessionStorage items
+    Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('game_') || 
+            key === 'timerState' || 
+            key === 'pendingSelections' || 
+            key === 'selectedUrls' || 
+            key === 'currentIndex') {
+            sessionStorage.removeItem(key);
+        }
+    });
+
+    // Reset module-level variables
+    isRunningStateTransition = false;
+    isPageReload = false;
+    lastReceivedStateVersion = 0;
+    isStateInitialized = false;
+}
 
 // Function to get the relevant URL for the current player
 export function getCurrentPlayerUrl(state) {
@@ -87,35 +131,16 @@ export async function handleLobbyToGameTransition() {
 async function resetStateForRunning() {
     console.log('Performing complete state reset for running state');
     
-    // 1. Reset module-level variables
+    // Clear all state first
+    clearAllState();
+    
+    // Set running state transition flag
     isRunningStateTransition = true;
-    isPageReload = false;
     
-    // 2. Clear localStorage items
-    const localStorageItems = [
-        'currentGameState',
-        'currentWikiLink',
-        'selectedWikiLink',
-        'pendingSelections',
-        'selectedUrls',
-        'currentIndex',
-        'isPageReload'
-    ];
-    localStorageItems.forEach(item => localStorage.removeItem(item));
-    
-    // 3. Clear sessionStorage items
-    const sessionStorageItems = [
-        'timerState',
-        'pendingSelections',
-        'selectedUrls',
-        'currentIndex'
-    ];
-    sessionStorageItems.forEach(item => sessionStorage.removeItem(item));
-    
-    // 4. Close all popups and clean up UI
+    // Close all popups and clean up UI
     closeAllPopups();
     
-    // 5. Clean up any remaining overlays
+    // Clean up any remaining overlays
     const remainingOverlays = document.querySelectorAll('.popup-overlay');
     remainingOverlays.forEach(overlay => {
         if (overlay && overlay.parentNode) {
@@ -123,14 +148,14 @@ async function resetStateForRunning() {
         }
     });
     
-    // 6. Reset subpage content
+    // Reset subpage content
     const subpageElement = document.querySelector('.subpage');
     if (subpageElement) {
         subpageElement.innerHTML = '';
         subpageElement.dataset.state = 'running';
     }
     
-    // 7. Clear any existing timers
+    // Clear any existing timers
     const timerElement = document.getElementById('gameTimer');
     if (timerElement) {
         timerElement.textContent = '--:--';
@@ -152,14 +177,11 @@ function handleStateUpdate(state) {
         lastReceivedStateVersion = state.version;
     }
 
+    // Mark state as initialized
+    isStateInitialized = true;
+
     // Process the state update
     // ... existing code ...
-}
-
-// Reset state version when leaving a room
-function resetState() {
-    lastReceivedStateVersion = 0;
-    // ... existing reset code ...
 }
 
 export async function loadGameState(state, gameContentContainer) { 
@@ -191,7 +213,7 @@ export async function loadGameState(state, gameContentContainer) {
     const currentState = localStorage.getItem('currentGameState') || '';
 
     // Handle state transitions and cleanup
-    if (state.state === 'running' && currentState && currentState !== 'running') {
+    if (state.state === 'running' && (!isStateInitialized || currentState !== 'running')) {
         console.log('Transitioning to running state, performing cleanup');
         await resetStateForRunning();
     }

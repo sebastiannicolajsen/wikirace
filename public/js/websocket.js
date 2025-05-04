@@ -143,7 +143,7 @@ class WebSocketManager {
     const isOnGamePage = currentPath === `/game/${this.roomId}`;
     const isOnObserverPage = currentPath === `/observer/${this.roomId}`;
     
-    // Only redirect if transitioning from lobby to running
+    // Handle state-based redirects
     if (state.state === 'running' && previousState === 'lobby') {
       if (this.playerType === 'observer' && !isOnObserverPage) {
         // Close WebSocket before redirecting
@@ -158,6 +158,12 @@ class WebSocketManager {
         window.location.href = `/game/${this.roomId}`;
         return;
       }
+    } else if (state.state === 'finished' && this.playerType === 'observer') {
+      // Close WebSocket before redirecting
+      this.unintentionalDisconnect();
+      // Redirect observers to game page to see results
+      window.location.href = `/game/${this.roomId}`;
+      return;
     }
 
     // Handle waiting timer
