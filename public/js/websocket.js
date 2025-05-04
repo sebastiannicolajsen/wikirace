@@ -1,121 +1,539 @@
-// WebSocket connection configuration
-let ws = null;
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY = 2000; // 2 seconds
+import timerManager from './timer.js';
+import popupManager from './popup.js';
 
-// Environment configuration
-let isProduction = false;
-let serverPort = null;
+class WebSocketManager {
+  constructor() {
+    this.ws = null;
+    this.roomId = null;
+    this.playerName = null;
+    this.playerType = null;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
+    this.reconnectInterval = 3000; // 3 seconds
+    this.messageHandlers = new Map();
+    this.gameState = null;
+    this.stateUpdateHandlers = new Set();
+    this.isIntentionalDisconnect = false;
+    this.config = null;
+    this.reconnectTimer = null;
+    this.isReconnecting = false; // Add flag to track reconnection state
+    this.connectionHandlers = new Set(); // Add set for connection handlers
+  }
 
-// Fetch environment configuration
-async function fetchConfig() {
+  async initialize() {
     try {
-        const response = await fetch('/api/config');
-        const config = await response.json();
-        isProduction = config.isProduction;
-        serverPort = config.port || serverPort;
-        console.log('Environment config:', { isProduction, serverPort });
+      const response = await fetch("/api/config");
+      this.config = await response.json();
     } catch (error) {
-        console.error('Error fetching config:', error);
+      console.error("Failed to fetch server configuration:", error);
+      this.showError("Failed to connect to server. Please refresh the page.");
     }
-}
+  }
 
-// Connect to WebSocket
-async function connectToRoom(roomId, playerName, role, messageHandler) {
-    await fetchConfig(); // Ensure we have the latest config
-    console.log('Connecting to room:', roomId, 'as player:', playerName, 'with role:', role);
-    
-    // Determine WebSocket protocol and port based on environment
-    const protocol = isProduction ? 'wss:' : 'ws:';
-    const port = isProduction ? '' : `:${serverPort}`;
-    const wsUrl = `${protocol}//${window.location.host}/game/${roomId.toUpperCase()}`;
-    console.log('Connecting to WebSocket URL:', wsUrl);
-    
-    ws = new WebSocket(wsUrl);
-    window.WebSocketManager.ws = ws; // Set the WebSocket instance in the manager
+  async connect(roomId, playerName, playerType) {
+    if (!this.config) {
+      await this.initialize();
+    }
 
-    ws.onopen = () => {
-        console.log('WebSocket connection established');
-        window.WebSocketManager.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-        // Send join message immediately
-        const joinMessage = { 
-            type: 'join',
-            playerName: playerName,
-            role: role || 'player' // Default to player if role not specified
-        };
-        console.log('Sending join message:', joinMessage);
-        ws.send(JSON.stringify(joinMessage));
+    this.roomId = roomId;
+    this.playerName = playerName;
+    this.playerType = playerType;
+
+    this.connectWebSocket();
+  }
+
+  connectWebSocket() {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/${this.roomId}`;
+
+    console.log("Connecting to WebSocket:", wsUrl);
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log("WebSocket connected");
+      this.reconnectAttempts = 0;
+      this.isReconnecting = false;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.sendMessage({
+        type: "join",
+        playerName: this.playerName,
+        playerType: this.playerType,
+      });
+      // Notify all connection handlers
+      this.connectionHandlers.forEach(handler => handler());
     };
 
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('WebSocket message received:', data);
-        messageHandler(data);
+    this.ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        this.handleMessage(message);
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
     };
 
-    ws.onclose = (event) => {
-        console.log('WebSocket connection closed:', event.code, event.reason);
-        
-        // Only attempt to reconnect if we haven't exceeded max attempts
-        if (window.WebSocketManager.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            window.WebSocketManager.reconnectAttempts++;
-            console.log(`Attempting to reconnect (${window.WebSocketManager.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
-            
-            // Show reconnecting message to user
-            const waitingScreen = document.getElementById('waitingScreen');
-            if (waitingScreen) {
-                waitingScreen.innerHTML = `
-                    <div class="text-center">
-                        <h2 class="text-2xl font-bold mb-4">Connection Lost</h2>
-                        <p class="text-gray-600 mb-4">Attempting to reconnect (${window.WebSocketManager.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...</p>
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                    </div>
-                `;
-                waitingScreen.style.display = 'flex';
-            }
-            
-            // Attempt to reconnect after delay
-            setTimeout(() => {
-                connectToRoom(roomId, playerName, role, messageHandler);
-            }, RECONNECT_DELAY);
-        } else {
-            console.log('Max reconnection attempts reached');
-            // Show error message to user
-            const waitingScreen = document.getElementById('waitingScreen');
-            if (waitingScreen) {
-                waitingScreen.innerHTML = `
-                    <div class="text-center">
-                        <h2 class="text-2xl font-bold mb-4 text-red-600">Connection Lost</h2>
-                        <p class="text-gray-600 mb-4">Unable to reconnect to the game server.</p>
-                        <button onclick="window.location.href='/'" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                            Return to Home
-                        </button>
-                    </div>
-                `;
-                waitingScreen.style.display = 'flex';
-            }
-        }
+    this.ws.onclose = (event) => {
+      console.log("WebSocket disconnected:", event.code, event.reason);
+      if (this.isIntentionalDisconnect) {
+        // Reset the intentional disconnect flag after handling the close
+        this.isIntentionalDisconnect = false;
+      } else if (event.code === 1000) {
+        // Handle connection attempt failed
+        const errorMessage = event.reason || "Connection attempt failed";
+        localStorage.setItem("connectionError", errorMessage);
+        window.dispatchEvent(
+          new CustomEvent("websocket-error", {
+            detail: { message: errorMessage },
+          })
+        );
+      } else {
+        this.handleDisconnect();
+      }
+      // Clean up the WebSocket reference
+      this.ws = null;
     };
 
-    ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+    this.ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
     };
-}
+  }
 
-// Send message through WebSocket
-function sendMessage(message) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        console.log('Sending message:', message);
-        ws.send(JSON.stringify(message));
+  handleDisconnect() {
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      console.log(
+        `Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+      );
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+      }
+      this.isReconnecting = true;
+      this.reconnectTimer = setTimeout(() => {
+        this.isReconnecting = false;
+        this.connectWebSocket();
+      }, this.reconnectInterval);
     } else {
-        console.error('WebSocket is not open');
+      console.log("Max reconnection attempts reached");
+      window.dispatchEvent(
+        new CustomEvent("websocket-error", {
+          detail: { message: "Connection lost. Please refresh the page." },
+        })
+      );
     }
+  }
+
+  sendMessage(message) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    } else {
+      console.error("WebSocket is not connected");
+    }
+  }
+
+  // State update handling
+  handleGameState(state) {
+    const previousState = this.gameState?.state;
+    this.gameState = state;
+    
+    // Only handle redirects if we're not already on the correct page
+    const currentPath = window.location.pathname;
+    const isOnGamePage = currentPath === `/game/${this.roomId}`;
+    const isOnObserverPage = currentPath === `/observer/${this.roomId}`;
+    
+    // Only redirect if transitioning from lobby to running
+    if (state.state === 'running' && previousState === 'lobby') {
+      if (this.playerType === 'observer' && !isOnObserverPage) {
+        // Close WebSocket before redirecting
+        this.unintentionalDisconnect();
+        // Redirect observers to observer page
+        window.location.href = `/observer/${this.roomId}`;
+        return;
+      } else if (this.playerType === 'player' && !isOnGamePage) {
+        // Close WebSocket before redirecting
+        this.unintentionalDisconnect();
+        // Redirect players to game page
+        window.location.href = `/game/${this.roomId}`;
+        return;
+      }
+    }
+
+    // Handle waiting timer
+    if (state.state === 'waiting' && state.waitingTimerStartTime) {
+      const now = Date.now();
+      const startTime = state.waitingTimerStartTime;
+      const duration = state.countdownTime * 1000; // Convert seconds to milliseconds
+      const elapsed = now - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      
+      // Only start the timer if there's remaining time and we're not already in waiting state
+      if (remaining > 0 && previousState !== 'waiting') {
+        timerManager.startWaitingTimer(startTime, duration);
+      }
+    } else if (previousState === 'waiting') {
+      timerManager.stopWaitingTimer();
+    }
+    
+    // Notify all state update handlers
+    this.stateUpdateHandlers.forEach((handler) => handler(state));
+  }
+
+  onStateUpdate(handler) {
+    this.stateUpdateHandlers.add(handler);
+    // If we already have a state, call the handler immediately
+    if (this.gameState) {
+      handler(this.gameState);
+    }
+  }
+
+  // Message handlers
+  handleAdditionUsed(message) {
+    console.log('Handling addition used:', message);
+    const event = new CustomEvent("addition-used", {
+      detail: {
+        sender: message.data.sender,
+        type: message.data.selection.type,
+        target: message.data.selection.target
+      },
+    });
+    window.dispatchEvent(event);
+  }
+
+  handleRequestAddition(message) {
+    const event = new CustomEvent("request-addition", {
+      detail: {
+        availableAdditions: message.availableAdditions,
+        count: message.count,
+      },
+    });
+    window.dispatchEvent(event);
+  }
+
+  handleRequestRandomUrl(message) {
+    const event = new CustomEvent("request-random-url", {
+      detail: {
+        count: message.count,
+      },
+    });
+    window.dispatchEvent(event);
+  }
+
+  handleRequestRandomUrls(message) {
+    const event = new CustomEvent("request-random-urls", {
+      detail: {
+        count: message.count,
+      },
+    });
+    window.dispatchEvent(event);
+  }
+
+  handleRequestContinueGame(message) {
+    const event = new CustomEvent("request-continue-game");
+    window.dispatchEvent(event);
+  }
+
+  handleRequestContinue(message) {
+    const event = new CustomEvent("request-continue");
+    window.dispatchEvent(event);
+  }
+
+  handleRequestSelectForMissingPlayers(message) {
+    const event = new CustomEvent("request-select-for-missing-players", {
+      detail: {
+        selections: message.selections,
+      },
+    });
+    window.dispatchEvent(event);
+  }
+
+  handleSelectForMissingPlayers(message) {
+    console.log('Handling select_for_missing_players for player:', this.playerName);
+    console.log('Message content:', message);
+    const event = new CustomEvent('select_for_missing_players', {
+        detail: message
+    });
+    console.log('Dispatching select_for_missing_players event for player:', this.playerName);
+    window.dispatchEvent(event);
+  }
+
+  // Helper methods for sending messages
+  sendUseAddition(additionType, targetPlayer) {
+    this.sendMessage({
+      type: "player.useAdditionResponse",
+      playerName: this.playerName,
+      selection: {
+        type: additionType,
+        target: targetPlayer,
+      },
+    });
+  }
+
+  sendGiveAddition(targetPlayer, additionType) {
+    this.sendMessage({
+      type: "creator.giveAddition",
+      playerName: this.playerName,
+      target: targetPlayer,
+      additionType: additionType
+    });
+  }
+
+  sendReadyToContinue() {
+    this.sendMessage({
+      type: "player.continueGame",
+      playerName: this.playerName
+    });
+  }
+
+  sendReadyToContinueFromHandout() {
+    this.sendMessage({
+      type: "player.readyToContinue",
+      playerName: this.playerName
+    });
+  }
+
+  sendPlayerSurrender() {
+    this.sendMessage({
+      type: "player_surrender",
+    });
+  }
+
+  sendCreatorLeave() {
+    this.sendMessage({
+      type: "creator_leave",
+    });
+  }
+
+  sendStartGame() {
+    this.sendMessage({
+      type: "creator.startGame",
+    });
+  }
+
+  sendKickUser(playerName) {
+    this.sendMessage({
+      type: "creator.kickUser",
+      playerName,
+    });
+  }
+
+  sendRestartGame() {
+    this.sendMessage({
+      type: "creator.restartGame",
+    });
+  }
+
+  sendContinueGame() {
+    this.sendMessage({
+      type: "creator.continueGame",
+      playerName: this.playerName
+    });
+  }
+
+  sendSelectLink(url) {
+    this.sendMessage({
+      type: "player.selectLink",
+      playerName: this.playerName,
+      url,
+    });
+  }
+
+  sendSelectRandomLink(url) {
+    this.sendMessage({
+      type: "player.randomSelectResponse",
+      playerName: this.playerName,
+      url,
+    });
+  }
+
+  sendRandomUrlsResponse(urls) {
+    this.sendMessage({
+      type: "player.randomUrlsResponse",
+      playerName: this.playerName,
+      urls,
+    });
+  }
+
+  sendSelectionForOthers(urls) {
+    this.sendMessage({
+      type: "player.selectionForOthers",
+      playerName: this.playerName,
+      urls,
+    });
+  }
+
+  sendSelectForMissingPlayersResponse(selections) {
+    this.sendMessage({
+      type: "player.selectForMissingPlayersResponse",
+      playerName: this.playerName,
+      selections,
+    });
+  }
+
+  sendRandomSelectResponse(url) {
+    this.sendMessage({
+      type: "player.randomSelectResponse",
+      playerName: this.playerName,
+      url,
+    });
+  }
+
+  sendKickPlayer(playerName) {
+    this.sendMessage({
+      type: "creator.kickPlayer",
+      playerName: playerName,
+    });
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.isIntentionalDisconnect = true;
+      // Send leave message
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.ws.close(
+        1000,
+        JSON.stringify({
+          intentional: true,
+          playerName: this.playerName
+        })
+      );
+    }
+  }
+
+  unintentionalDisconnect() {
+    if (this.ws) {
+      if (this.isReconnecting) {
+        console.log("Already attempting to reconnect, skipping...");
+        return;
+      }
+      this.isIntentionalDisconnect = false;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.isReconnecting = false; // Reset reconnecting state
+      this.ws.close();
+    }
+  }
+
+  showError(message) {
+    const event = new CustomEvent("websocket-error", { detail: { message } });
+    window.dispatchEvent(event);
+  }
+
+  // Main message handler - should be at the bottom
+  handleMessage(message) {
+    console.log('WebSocket message received:', message);
+    if (message.type === 'select_for_missing_players') {
+        console.log('select_for_missing_players message received for player:', this.playerName);
+        console.log('Message content:', message);
+        // Only dispatch the event if this player is the first submitter
+        if (message.playerName === this.playerName) {
+            console.log('This player is the intended recipient, dispatching event');
+            this.handleSelectForMissingPlayers(message);
+        } else {
+            console.log('This player is not the intended recipient, ignoring message');
+        }
+        return;
+    }
+    if (message.type === "close_popup") {
+      // Close all popups
+      popupManager.closeAllPopups();
+      return;
+    }
+    switch (message.type) {
+      case "game_state":
+        this.handleGameState(message.state);
+        break;
+      case "addition_used":
+        this.handleAdditionUsed(message);
+        break;
+      case "request_addition":
+        this.handleRequestAddition(message);
+        break;
+      case "request_random_url":
+        this.handleRequestRandomUrl(message);
+        break;
+      case "request_random_urls":
+        this.handleRequestRandomUrls(message);
+        break;
+      case "request_continue_game":
+        this.handleRequestContinueGame(message);
+        break;
+      case "request_continue":
+        this.handleRequestContinue(message);
+        break;
+      case "request_select_for_missing_players":
+        this.handleRequestSelectForMissingPlayers(message);
+        break;
+      case "select_for_missing_players":
+        console.log('Received select_for_missing_players message in handleMessage');
+        this.handleSelectForMissingPlayers(message);
+        break;
+      case "player_kicked":
+        console.log('Handling player_kicked message:', message);
+        this.handlePlayerKicked(message);
+        break;
+      default:
+        console.warn("Unknown message type:", message.type);
+    }
+  }
+
+  handlePlayerKicked(message) {
+    console.log('Handling player kicked:', message);
+    // Dispatch the player-kicked event
+    const event = new CustomEvent("player-kicked", {
+      detail: {
+        playerName: message.playerName,
+        reason: message.reason
+      },
+    });
+    window.dispatchEvent(event);
+  }
+
+  onConnection(handler) {
+    this.connectionHandlers.add(handler);
+    // If we're already connected, call the handler immediately
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      handler();
+    }
+  }
 }
 
-// Export the functions
-window.WebSocketManager = {
-    connectToRoom,
-    sendMessage,
-    ws: null, // Expose the WebSocket instance
-    reconnectAttempts: 0 // Track reconnection attempts
-}; 
+// Create a singleton instance
+const websocketManager = new WebSocketManager();
+
+// Handle page unload
+window.addEventListener("beforeunload", () => {
+  websocketManager.unintentionalDisconnect();
+});
+
+// Handle page hide
+window.addEventListener("pagehide", () => {
+  websocketManager.unintentionalDisconnect();
+});
+
+// Handle visibility change
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    // Page is hidden, close WebSocket if open
+    if (websocketManager.ws && websocketManager.ws.readyState === WebSocket.OPEN) {
+      websocketManager.unintentionalDisconnect();
+    }
+  } else {
+    // Page is visible, only reconnect if:
+    // 1. There's no WebSocket connection
+    // 2. The connection is closed
+    // 3. We're not already attempting to reconnect
+    if ((!websocketManager.ws || websocketManager.ws.readyState === WebSocket.CLOSED) && 
+        !websocketManager.isReconnecting) {
+      websocketManager.connectWebSocket();
+    }
+  }
+});
+
+export default websocketManager;

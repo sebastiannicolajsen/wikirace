@@ -1,0 +1,184 @@
+/* Layout containers */
+.container {
+    width: 100%;
+    padding: 1rem;
+    margin: 0 auto;
+}
+
+/* Page layouts */
+.page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.page-content {
+    flex: 1;
+    padding: 1rem;
+    margin-top: 60px; /* Add margin to account for header height */
+}
+
+/* Header */
+.header {
+    background: white;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: 60px; /* Fixed height for header */
+}
+
+/* Navigation */
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Popups */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    max-width: 90%;
+    width: 400px;
+    position: relative;
+}
+
+.popup-message-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.popup-message {
+    flex: 1;
+    font-size: 1rem;
+    color: var(--text-color);
+    line-height: 1.4;
+}
+
+.popup-close {
+    flex-shrink: 0;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: var(--text-color);
+    background: none;
+    border: none;
+    padding: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius);
+    transition: all var(--transition-speed) ease;
+}
+
+.popup-close:hover {
+    background-color: var(--hover-color);
+    color: var(--primary-color);
+}
+
+/* Timer display */
+.timer {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 90;
+}
+
+/* Game layout */
+.game-layout {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+}
+
+.game-header {
+    padding: 1rem;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.game-main {
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+/* Observer panel */
+.observer-panel {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .observer-panel {
+        display: block;
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 300px;
+        background: white;
+        box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+        overflow-y: auto;
+    }
+
+    .game-main {
+        margin-right: 300px;
+    }
+}
+
+/* Player list */
+.player-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+/* Game controls */
+.game-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 1rem;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 90;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .popup {
+        width: 95%;
+    }
+
+    .game-controls {
+        padding: 0.5rem;
+    }
+} 

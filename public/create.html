@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Room - WikiRace</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="page">
+        <main class="page-content">
+            <div class="container">
+                <div class="card">
+                    <form id="createForm" class="form">
+                        <div class="form-group">
+                            <label class="form-label" for="roomName">
+                                <span class="info-icon" data-info="roomName">i</span>
+                            </label>
+                            <input type="text" id="roomName" class="form-input">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="playerName">
+                                <span class="info-icon" data-info="playerName">i</span>
+                            </label>
+                            <input type="text" id="playerName" class="form-input">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="startUrl">
+                                <span class="info-icon" data-info="startUrl">i</span>
+                            </label>
+                            <div class="input-group">
+                                <button type="button" class="button button-secondary" id="prevStartUrl">
+                                    <span class="icon">←</span>
+                                </button>
+                                <input type="text" id="startUrl" class="form-input" 
+                                       placeholder="https://en.wikipedia.org/wiki/...">
+                                <button type="button" class="button button-secondary" id="nextStartUrl">
+                                    <span class="icon">→</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="endUrl">
+                                <span class="info-icon" data-info="endUrl">i</span>
+                            </label>
+                            <div class="input-group">
+                                <button type="button" class="button button-secondary" id="prevEndUrl">
+                                    <span class="icon">←</span>
+                                </button>
+                                <input type="text" id="endUrl" class="form-input" 
+                                       placeholder="https://en.wikipedia.org/wiki/...">
+                                <button type="button" class="button button-secondary" id="nextEndUrl">
+                                    <span class="icon">→</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="countdownTime">
+                                <span class="info-icon" data-info="countdownTime">i</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="range" id="countdownTime" class="form-input" 
+                                       min="5" max="35" value="30" required>
+                                <span class="input-value">30</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="info-icon" data-info="role">i</span>
+                            </label>
+                            <div class="icon-button-group">
+                                <button type="button" class="icon-button active" data-value="player">
+                                    <i class="fas fa-user"></i>
+                                    <span>Player</span>
+                                </button>
+                                <button type="button" class="icon-button" data-value="observer">
+                                    <i class="fas fa-eye"></i>
+                                    <span>Observer</span>
+                                </button>
+                                <input type="hidden" name="role" value="player">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="info-icon" data-info="continuation">i</span>
+                            </label>
+                            <div class="icon-button-group">
+                                <button type="button" class="icon-button active" data-value="automatic">
+                                    <i class="fas fa-times"></i>
+                                    <span>No pause</span>
+                                </button>
+                                <button type="button" class="icon-button" data-value="creator">
+                                    <i class="fas fa-user"></i>
+                                    <span>Owner only</span>
+                                </button>
+                                <button type="button" class="icon-button" data-value="democratic">
+                                    <i class="fas fa-users"></i>
+                                    <span>All</span>
+                                </button>
+                                <input type="hidden" name="continuation" value="automatic">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="info-icon" data-info="chooser">i</span>
+                            </label>
+                            <div class="icon-button-group">
+                                <button type="button" class="icon-button active" data-value="random">
+                                    <i class="fas fa-question"></i>
+                                    <span>Random</span>
+                                </button>
+                                <button type="button" class="icon-button" data-value="player">
+                                    <i class="fas fa-user"></i>
+                                    <span>First player to choose</span>
+                                </button>
+                                <input type="hidden" name="chooser" value="random">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="info-icon" data-info="effectCards">i</span>
+                            </label>
+                            <div class="effect-cards-container">
+                                <button type="button" class="effect-cards-toggle">
+                                    <span>Configure effect cards</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="effect-cards-content">
+                                    <div class="effect-cards">
+                                        <div class="effect-item">
+                                            <div class="effect-controls">
+                                                <div class="icon-button-group">
+                                                    <button type="button" class="icon-button" data-value="false" name="bombEnabled">
+                                                        <span class="effect-emoji">💣</span>
+                                                        <span class="effect-title">Bomb</span>
+                                                        <span class="effect-state">Off</span>
+                                                    </button>
+                                                    <input type="hidden" name="bombEnabled" value="false">
+                                                </div>
+                                                <div class="effect-count" id="bombCountContainer" style="display: none;">
+                                                    <button type="button" class="count-btn minus">-</button>
+                                                    <span class="count-value">0</span>
+                                                    <button type="button" class="count-btn plus">+</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="effect-item">
+                                            <div class="effect-controls">
+                                                <div class="icon-button-group">
+                                                    <button type="button" class="icon-button" data-value="false" name="returnEnabled">
+                                                        <span class="effect-emoji">↩️</span>
+                                                        <span class="effect-title">Return</span>
+                                                        <span class="effect-state">Off</span>
+                                                    </button>
+                                                    <input type="hidden" name="returnEnabled" value="false">
+                                                </div>
+                                                <div class="effect-count" id="returnCountContainer" style="display: none;">
+                                                    <button type="button" class="count-btn minus">-</button>
+                                                    <span class="count-value">0</span>
+                                                    <button type="button" class="count-btn plus">+</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="effect-item">
+                                            <div class="effect-controls">
+                                                <div class="icon-button-group">
+                                                    <button type="button" class="icon-button" data-value="false" name="swapEnabled">
+                                                        <span class="effect-emoji">🔄</span>
+                                                        <span class="effect-title">Swap</span>
+                                                        <span class="effect-state">Off</span>
+                                                    </button>
+                                                    <input type="hidden" name="swapEnabled" value="false">
+                                                </div>
+                                                <div class="effect-count" id="swapCountContainer" style="display: none;">
+                                                    <button type="button" class="count-btn minus">-</button>
+                                                    <span class="count-value">0</span>
+                                                    <button type="button" class="count-btn plus">+</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="effect-settings" style="display: none;">
+                                        <div class="setting-group">
+                                            <label class="form-label">
+                                                <span class="info-icon" data-info="cardUseStyle">i</span>
+                                            </label>
+                                            <div class="icon-button-group">
+                                                <button type="button" class="icon-button active" data-value="free_for_all">
+                                                    <i class="fas fa-users"></i>
+                                                    <span>Free for all</span>
+                                                </button>
+                                                <button type="button" class="icon-button" data-value="round_robin">
+                                                    <i class="fas fa-user"></i>
+                                                    <span>Turn based</span>
+                                                </button>
+                                                <input type="hidden" name="additions_callType" value="free_for_all">
+                                            </div>
+                                        </div>
+
+                                        <div class="setting-group">
+                                            <label class="form-label">
+                                                <span class="info-icon" data-info="additions_timer">i</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="range" id="additions_timer" class="form-input" 
+                                                       min="5" max="60" value="30" required>
+                                                <span class="input-value">30</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="setting-group">
+                                            <label class="form-label">
+                                                <span class="info-icon" data-info="multipleCardsPerPlayer">i</span>
+                                            </label>
+                                            <div class="icon-button-group">
+                                                <button type="button" class="icon-button active" data-value="false">
+                                                    <i class="fas fa-times"></i>
+                                                    <span>No</span>
+                                                </button>
+                                                <button type="button" class="icon-button" data-value="true">
+                                                    <i class="fas fa-check"></i>
+                                                    <span>Yes</span>
+                                                </button>
+                                                <input type="hidden" name="additions_application" value="false">
+                                            </div>
+                                        </div>
+
+                                        <div class="setting-group">
+                                            <label class="form-label">
+                                                <span class="info-icon" data-info="multipleCardsPerRound">i</span>
+                                            </label>
+                                            <div class="icon-button-group">
+                                                <button type="button" class="icon-button active" data-value="false">
+                                                    <i class="fas fa-times"></i>
+                                                    <span>No</span>
+                                                </button>
+                                                <button type="button" class="icon-button" data-value="true">
+                                                    <i class="fas fa-check"></i>
+                                                    <span>Yes</span>
+                                                </button>
+                                                <input type="hidden" name="additions_multiplePerRound" value="false">
+                                            </div>
+                                        </div>
+
+                                        <div class="effect-settings-divider">
+                                            <span>Getting cards...</span>
+                                        </div>
+
+                                        <div class="setting-group">
+                                            <label class="form-label">
+                                                <span class="info-icon" data-info="creatorGive">i</span>
+                                            </label>
+                                            <div class="icon-button-group">
+                                                <button type="button" class="icon-button active" data-value="false">
+                                                    <i class="fas fa-times"></i>
+                                                    <span>No</span>
+                                                </button>
+                                                <button type="button" class="icon-button" data-value="true">
+                                                    <i class="fas fa-check"></i>
+                                                    <span>Yes</span>
+                                                </button>
+                                                <input type="hidden" name="additions_creatorGive" value="false">
+                                            </div>
+                                        </div>
+
+                                        <div class="setting-group">
+                                            <label class="form-label">
+                                                <span class="info-icon" data-info="obtainWithTimer">i</span>
+                                            </label>
+                                            <div class="effect-controls">
+                                                <div class="icon-button-group">
+                                                    <button type="button" class="icon-button" data-value="false" name="additions_obtainWithTimer">
+                                                        <span class="effect-title">When player misses link (amount)</span>
+                                                        <span class="effect-state">Off</span>
+                                                    </button>
+                                                    <input type="hidden" name="additions_obtainWithTimer" value="false">
+                                                </div>
+                                                <div class="effect-count" id="timerCountContainer" style="display: none;">
+                                                    <button type="button" class="count-btn minus">-</button>
+                                                    <span class="count-value">0</span>
+                                                    <button type="button" class="count-btn plus">+</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="setting-group">
+                                            <div class="effect-controls">
+                                                <div class="icon-button-group">
+                                                    <button type="button" class="icon-button" data-value="false" name="additions_obtainWithExposure">
+                                                        <span class="effect-title">When player suffers a card (amount)</span>
+                                                        <span class="effect-state">Off</span>
+                                                    </button>
+                                                    <input type="hidden" name="additions_obtainWithExposure" value="false">
+                                                </div>
+                                                <div class="effect-count" id="exposureCountContainer" style="display: none;">
+                                                    <button type="button" class="count-btn minus">-</button>
+                                                    <span class="count-value">0</span>
+                                                    <button type="button" class="count-btn plus">+</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="button">Create Room</button>
+                            <button type="button" class="button button-icon" id="shareSetup" title="Share Room Setup">
+                                <i class="fas fa-share"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="infoPopup" class="info-popup">
+        <div class="info-popup-content">
+            <button class="info-popup-close">&times;</button>
+            <h3 class="info-popup-title"></h3>
+            <div class="info-popup-text"></div>
+        </div>
+    </div>
+
+    <script type="module" src="/js/createRoom.js"></script>
+    <script>
+        // Handle WebSocket errors
+        window.addEventListener('websocket-error', (event) => {
+            popupManager.showInfo(event.detail.message);
+            window.location.href = '/';
+        });
+
+        async function createRoom(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const errorDisplay = document.getElementById('errorDisplay');
+            
+            // Disable submit button and show loading state
+            submitButton.disabled = true;
+            submitButton.classList.add('loading');
+            errorDisplay.textContent = '';
+            
+            try {
+                const formData = {
+                    name: form.roomName.value,
+                    startUrl: form.startUrl.value,
+                    endUrl: form.endUrl.value,
+                    playerName: form.playerName.value || form.playerName.placeholder,
+                    countdownTime: parseInt(form.countdownTime.value),
+                    role: form.role.value,
+                    config: getConfig()
+                };
+
+                const response = await fetch('/api/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to create room');
+                }
+
+                // Store creator flag
+                sessionStorage.setItem('isCreator', 'true');
+                
+                // Redirect to room page
+                window.location.href = `/room/${data.id}`;
+            } catch (error) {
+                console.error('Error creating room:', error);
+                // Display the error message in the UI
+                const errorMessage = error.message || 'Failed to create room';
+                errorDisplay.textContent = errorMessage;
+                
+                // If it's a room limit error, show the "host your own" message
+                if (errorMessage.includes('Maximum room limit')) {
+                    errorDisplay.innerHTML = `${errorMessage} <a href="https://github.com/sebastiannicolajsen/wikirace" target="_blank">Host your own instance</a>`;
+                }
+                
+                submitButton.disabled = false;
+                submitButton.classList.remove('loading');
+            }
+        }
+    </script>
+</body>
+</html> 

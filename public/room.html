@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Room - WikiRace</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      .url-item {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1rem;
+      }
+
+      .url-header {
+        display: flex;
+        align-items: baseline;
+        gap: 0;
+      }
+
+      .url-label {
+        font-weight: bold;
+        min-width: 3.5rem;
+        padding-top: 0.2rem;
+        text-align: left;
+      }
+
+      .url-value {
+        flex: 1;
+        word-break: break-word;
+        text-align: left;
+        padding-left: 0.5rem;
+      }
+
+      .url-preview {
+        margin-top: 0.5rem;
+        max-height: 3em;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+        cursor: pointer;
+        position: relative;
+        padding-left: 1.5rem;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        text-align: left;
+      }
+
+      .url-preview.expanded {
+        max-height: none;
+        -webkit-line-clamp: unset;
+      }
+
+      .url-preview::after {
+        content: "▼";
+        position: absolute;
+        left: 0;
+        top: 0;
+        background: var(--background-color, #ffffff);
+        padding-right: 0.5rem;
+        font-size: 0.8em;
+        line-height: 1.5;
+        height: 1.5em;
+        display: flex;
+        align-items: center;
+      }
+
+      .url-preview.expanded::after {
+        content: "▲";
+      }
+
+      @media (max-width: 768px) {
+        .url-preview {
+          font-size: 0.9em;
+        }
+      }
+
+      .rules-section {
+        margin-top: 0.5rem;
+        padding: 1rem;
+        background: var(--background-color, #ffffff);
+        border-radius: 0.5rem;
+      }
+
+      .rules-subtitle {
+        color: var(--text-secondary, #666);
+        font-size: 0.9em;
+        margin-bottom: 0.5rem;
+      }
+
+      .rules-list {
+        margin: 0;
+        padding-left: 1.5rem;
+      }
+
+      .rules-list li {
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+      }
+
+      .rules-list li:last-child {
+        margin-bottom: 0;
+      }
+
+      .rules-header {
+        font-weight: bold;
+        color: var(--text-color);
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        list-style: none;
+      }
+
+      .rules-separator {
+        list-style: none;
+        margin: 1rem 0;
+      }
+
+      .rules-separator hr {
+        border: none;
+        border-top: 1px solid var(--border-color);
+        margin: 0;
+      }
+
+      .section-title {
+        margin-bottom: 0.25rem;
+      }
+
+      .player-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.4rem;
+        background-color: white;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        margin: 0.1rem;
+        font-size: 0.75rem;
+        color: var(--text-color);
+        transition: all var(--transition-speed) ease;
+        gap: 0.2rem;
+      }
+
+      .kick-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        padding: 0;
+        margin: 0;
+        background: none;
+        border: none;
+        border-radius: 50%;
+        color: var(--secondary-color);
+        cursor: pointer;
+        font-size: 0.7rem;
+        transition: all var(--transition-speed) ease;
+      }
+
+      .qr-section {
+        position: relative;
+        margin-bottom: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .qr-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .qr-code {
+        width: 150px;
+        height: 150px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .qr-code svg {
+        width: 150px;
+        height: 150px;
+      }
+
+      .qr-link-container {
+        display: none;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-color);
+        font-family: monospace;
+        font-size: 0.9em;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        transition: background-color 0.2s ease;
+        width: 100%;
+        justify-content: center;
+      }
+
+      .qr-link-container:hover {
+        background-color: var(--hover-color, #f5f5f5);
+      }
+
+      .qr-link-container.copied {
+        background-color: var(--success-color, #e8f5e9);
+      }
+
+      .qr-controls {
+        display: none;
+        flex-direction: column;
+        gap: 1rem;
+        margin-top: 1rem;
+        width: 100%;
+      }
+
+      /* Hide all controls by default */
+      #creatorControls, #playerControls {
+        display: none;
+      }
+
+      /* Show controls based on role */
+      .is-creator #creatorControls {
+        display: block;
+      }
+
+      .is-player #playerControls {
+        display: flex;
+      }
+
+      @media (min-width: 1024px) {
+        .page-content {
+          display: flex;
+          gap: 2rem;
+          align-items: flex-start;
+        }
+
+        .qr-section {
+          position: sticky;
+          top: 2rem;
+          margin-bottom: 0;
+          flex: 0 0 200px;
+          z-index: 1;
+        }
+
+        .container {
+          flex: 1;
+        }
+
+        .qr-link-container {
+          display: flex;
+          font-size: 2.5em;
+          font-weight: bold;
+          padding: 1rem;
+          width: 100%;
+          text-align: center;
+        }
+
+        .qr-controls {
+          display: flex;
+        }
+
+        /* Hide main controls in desktop */
+        .container #creatorControls,
+        .container #playerControls {
+          display: none !important;
+        }
+
+        /* Show QR controls in desktop */
+        .qr-controls #creatorControls,
+        .qr-controls #playerControls {
+          display: flex !important;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        /* Hide leave button for creator in desktop */
+        .is-creator .qr-controls #leaveRoom {
+          display: none !important;
+        }
+
+        /* Hide start game and close room for players in QR controls */
+        .is-player .qr-controls #startGame,
+        .is-player .qr-controls #closeRoom {
+          display: none !important;
+        }
+      }
+
+      @media (max-width: 1023px) {
+        .page-content {
+          position: relative;
+          min-height: 100vh;
+          padding-top: 200px; /* Make space for QR code */
+        }
+
+        .qr-section {
+          position: fixed;
+          top: 2rem;
+          left: 0;
+          right: 0;
+          margin: 0 auto;
+          width: 100%;
+          max-width: 600px; /* Match card width */
+          z-index: 0;
+          display: flex;
+          justify-content: center;
+          padding: 0 1rem; /* Match card padding */
+          transition: opacity 0.15s ease; /* Only apply transition in mobile */
+        }
+
+        .container {
+          position: relative;
+          z-index: 1;
+          background-color: var(--background-color, #ffffff);
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 0 1rem;
+        }
+
+        .card {
+          width: 100%;
+          max-width: 600px;
+          margin: 0 auto;
+        }
+
+        .qr-code {
+          width: 150px;
+          height: 150px;
+        }
+
+        .qr-code svg {
+          width: 150px;
+          height: 150px;
+        }
+
+        /* Show room ID in mobile */
+        #mobileRoomId {
+          display: block !important;
+        }
+
+        /* Hide QR controls in mobile */
+        .qr-controls {
+          display: none !important;
+        }
+
+        /* Show main controls in mobile based on role */
+        .is-creator .container #creatorControls {
+          display: block !important;
+        }
+
+        .is-creator .container #creatorControls .button-group {
+          display: flex !important;
+          gap: 1rem;
+          justify-content: center;
+        }
+
+        .is-player .container #playerControls {
+          display: flex !important;
+        }
+
+        /* Hide leave button for creator in mobile */
+        .is-creator .container #leaveRoom {
+          display: none !important;
+        }
+      }
+
+      .button.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background-color: var(--border-color, #ddd);
+      }
+
+      .button.disabled:hover {
+        background-color: var(--border-color, #ddd);
+      }
+
+      @media (max-width: 768px) {
+        .popup {
+          width: 95%;
+        }
+
+        .game-controls {
+          padding: 0.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <main class="page-content">
+        <div class="qr-section">
+          <div class="qr-container">
+            <div id="qrCode" class="qr-code"></div>
+            <div class="qr-link-container" id="roomLinkContainer">
+              <span id="roomLink"></span>
+            </div>
+          </div>
+          <div class="qr-controls">
+            <div id="creatorControls" style="display: none">
+              <button id="startGame" class="button">Start Game</button>
+              <button id="closeRoom" class="button button-secondary">Close Room</button>
+            </div>
+            <div id="playerControls" style="display: none">
+              <button id="leaveRoom" class="button button-secondary">Leave</button>
+            </div>
+          </div>
+        </div>
+        <div class="container">
+          <div class="card">
+            <div class="room-info">
+              <div id="roomName" class="wikirace-title"></div>
+              <p id="mobileRoomId" class="room-id" style="display: none; text-align: center; color: var(--text-secondary, #666); margin-top: 0.5rem;">Join with <span style="font-weight: bold; color: var(--text-color);"></span></p>
+              <div class="url-info">
+                <div class="url-item">
+                  <div class="url-header">
+                    <span class="url-label"
+                      >📍<span id="startUrl" class="url-value"
+                        >https://en.wikipedia.org/wiki/...</span
+                      ></span
+                    >
+                  </div>
+                  <p id="startPreview" class="url-preview"></p>
+                </div>
+                <div class="url-item">
+                  <div class="url-header">
+                    <span class="url-label"
+                      >🏁
+                      <span id="endUrl" class="url-value"
+                        >https://en.wikipedia.org/wiki/...</span
+                      ></span
+                    >
+                  </div>
+                  <p id="endPreview" class="url-preview"></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="players-section">
+              <h3 class="section-title">Players</h3>
+              <div id="playerList" class="player-list">
+                <!-- Player badges will be added here -->
+              </div>
+            </div>
+
+            <div id="gameSettings" class="game-settings">
+              <!-- Game settings will be added here -->
+            </div>
+
+            <h3 class="section-title">Rules of this game</h3>
+            <p class="rules-subtitle">Rules vary according to settings of the owner</p>
+            <div class="rules-section">
+              <ol id="gameRules" class="rules-list">
+                <!-- Rules will be added here dynamically -->
+              </ol>
+            </div>
+
+            <div id="creatorControls" style="display: none">
+              <div id="creatorControlsTitle" style="display: hidden"></div>
+              <div
+                class="button-group"
+                style="
+                  margin-top: 2rem;
+                  display: flex;
+                  gap: 1rem;
+                  justify-content: center;
+                "
+              >
+                <button id="startGame" class="button">Start Game</button>
+                <button id="closeRoom" class="button button-secondary">
+                  Close Room
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="playerControls"
+              class="button-group"
+              style="margin-top: 2rem; display: flex; justify-content: center"
+            >
+              <button id="leaveRoom" class="button button-secondary">
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import websocketManager from "/js/websocket.js";
+      import popupManager from "/js/popup.js";
+      import { urlToTitle } from "/js/wikiHelper.js";
+
+      // Clear any pending selections when entering a room
+      sessionStorage.removeItem('pendingSelections');
+
+      // Load game rules
+      let gameRules = null;
+      try {
+        const response = await fetch('/js/gameRules.json');
+        gameRules = await response.json();
+      } catch (error) {
+        console.error('Failed to load game rules:', error);
+      }
+
+      // Function to clean up text formatting
+      function cleanText(text) {
+        return text
+          // Remove MediaWiki classes
+          .replace(/\.mw-parser-output\s+/g, '')
+          .replace(/\.mw-editsection\s+/g, '')
+          .replace(/\.mw-headline\s+/g, '')
+          .replace(/\.mw-body-content\s+/g, '')
+          .replace(/\.mw-body\s+/g, '')
+          .replace(/\.mw-page-container\s+/g, '')
+          .replace(/\.mw-page-container-inner\s+/g, '')
+          .replace(/\.mw-content-container\s+/g, '')
+          .replace(/\.mw-content-ltr\s+/g, '')
+          .replace(/\.mw-content-rtl\s+/g, '')
+          .replace(/\.mw-parser-output\s*>\s*/g, '')
+          .replace(/\.mw-parser-output\s*>\s*[^>]*\s*>/g, '')
+          .replace(/\.mw-parser-output\s*>\s*[^>]*\s*>\s*[^>]*\s*>/g, '')
+          .replace(/\.mw-parser-output\s*>\s*[^>]*\s*>\s*[^>]*\s*>\s*[^>]*\s*>/g, '')
+          // Remove brackets and their contents
+          .replace(/\[.*?\]/g, '') // Remove square brackets and their contents
+          .replace(/\{.*?\}/g, '') // Remove curly brackets and their contents
+          .replace(/\(.*?\)/g, '') // Remove parentheses and their contents
+          .replace(/<.*?>/g, '') // Remove angle brackets and their contents
+          // Remove specific formatting elements
+          .replace(/\.mw-editsection/g, '')
+          .replace(/\.mw-headline/g, '')
+          .replace(/\.mw-body-content/g, '')
+          .replace(/\.mw-body/g, '')
+          .replace(/\.mw-page-container/g, '')
+          .replace(/\.mw-page-container-inner/g, '')
+          .replace(/\.mw-content-container/g, '')
+          .replace(/\.mw-content-ltr/g, '')
+          .replace(/\.mw-content-rtl/g, '')
+          // Clean up any remaining formatting
+          .replace(/\s+/g, ' ') // Replace multiple spaces with a single space
+          .trim(); // Remove leading and trailing spaces
+      }
+
+      // Function to replace placeholders in rules
+      function replacePlaceholders(text, settings) {
+        // First clean the text to remove any formatting
+        const cleanedText = cleanText(text);
+        
+        // Then replace placeholders
+        return cleanedText.replace(/\$(\w+)\$/g, (match, key) => {
+          // Handle nested properties (e.g., additions_bomb -> settings.additions.bomb)
+          const parts = key.split('_');
+          let value;
+          if (parts.length > 1) {
+            const [parent, child] = parts;
+            value = settings[parent]?.[child];
+          } else {
+            value = settings[key];
+          }
+          // If value is undefined or null, try to get it from the root settings
+          if (value === undefined || value === null) {
+            value = settings[key];
+          }
+          // Return the value if it exists (including 0), otherwise return the original match
+          return value !== undefined && value !== null ? `<strong>${value}</strong>` : match;
+        });
+      }
+
+      // Function to update rules based on game settings
+      function updateRules(settings) {
+        if (!gameRules) return;
+
+        const rulesList = document.getElementById('gameRules');
+        rulesList.innerHTML = '';
+
+        // Add base rules
+        gameRules.baseRules.forEach(rule => {
+          const li = document.createElement('li');
+          li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+          rulesList.appendChild(li);
+        });
+
+        // Add chooser rules
+        if (settings.chooser) {
+          gameRules.chooser[settings.chooser].forEach(rule => {
+            const li = document.createElement('li');
+            li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+            rulesList.appendChild(li);
+          });
+        }
+
+        // Add continuation rules
+        if (settings.continuation) {
+          gameRules.continuation[settings.continuation].forEach(rule => {
+            const li = document.createElement('li');
+            li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+            rulesList.appendChild(li);
+          });
+        }
+
+        // Add addition rules if enabled
+        if (settings.additions && Object.keys(settings.additions).length > 0) {
+          // Add Effect Cards header
+          const headerLi = document.createElement('li');
+          headerLi.className = 'rules-header';
+          headerLi.textContent = 'Effect Cards';
+          rulesList.appendChild(headerLi);
+
+          // Add general addition rules
+          gameRules.additions.enabled.forEach(rule => {
+            const li = document.createElement('li');
+            li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+            rulesList.appendChild(li);
+          });
+
+          // Add application rules
+          if (settings.additions_application) {
+            gameRules.additions.application[settings.additions_application].forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+
+          // Add call type rules
+          if (settings.additions_callType) {
+            gameRules.additions.callType[settings.additions_callType].forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+
+          if (settings.additions_multiplePerRound) {
+            gameRules.additions.multiplePerRound.forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+
+          // Add addition settings rules
+          if (settings.additions_creatorGive) {
+            gameRules.additions.creatorGive.forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+          if (settings.additions_obtainWithExposure > 0) {
+            gameRules.additions.obtainWithExposure.forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+          if (settings.additions_obtainWithTimer > 0) {
+            gameRules.additions.obtainWithTimer.forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+
+          // Add separator and enabled addition rules
+          const separatorLi = document.createElement('li');
+          separatorLi.className = 'rules-separator';
+          separatorLi.innerHTML = '<hr>';
+          rulesList.appendChild(separatorLi);
+
+          // Add specific addition rules for enabled cards
+          if (settings.additions.bomb !== undefined) {
+            gameRules.additions.bomb.forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+          if (settings.additions.swap !== undefined) {
+            gameRules.additions.swap.forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+          if (settings.additions.return !== undefined) {
+            gameRules.additions.return.forEach(rule => {
+              const li = document.createElement('li');
+              li.innerHTML = replacePlaceholders(rule, { ...settings, countdownTime: settings.countdownTime, countdownTimer: settings.countdownTime });
+              rulesList.appendChild(li);
+            });
+          }
+        }
+      }
+
+      // Get room ID from URL
+      const roomId = window.location.pathname.split("/").pop();
+
+      // Get player information from session storage
+      const playerName = sessionStorage.getItem("playerName");
+      const playerType = sessionStorage.getItem("playerType");
+
+      if (!playerName || !playerType) {
+        popupManager.showInfo(
+          "Player information not found. Please enter your name to join the room."
+        );
+        window.location.href = `/?id=${roomId}`;
+        throw new Error("Player information not found");
+      }
+
+      // Function to convert RGB to hex
+      function rgbToHex(rgb) {
+        // Extract RGB values from the string
+        const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        if (!match) return '#ffffff';
+
+        // Convert each value to hex
+        const r = parseInt(match[1]).toString(16).padStart(2, '0');
+        const g = parseInt(match[2]).toString(16).padStart(2, '0');
+        const b = parseInt(match[3]).toString(16).padStart(2, '0');
+
+        return `#${r}${g}${b}`;
+      }
+
+      // Fetch QR code
+      async function fetchQRCode() {
+        try {
+          const backgroundColor = rgbToHex(getComputedStyle(document.body).backgroundColor);
+          const response = await fetch(`/api/qr/${roomId}?bg=${encodeURIComponent(backgroundColor)}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch QR code');
+          }
+          const data = await response.json();
+          const qrCode = document.getElementById('qrCode');
+          if (data.qrCode) {
+            qrCode.innerHTML = data.qrCode;
+            qrCode.style.display = 'block';
+          } else {
+            console.error('No QR code data received');
+            qrCode.style.display = 'none';
+          }
+          
+          // Set up room link
+          const roomLink = document.getElementById('roomLink');
+          const roomLinkContainer = document.getElementById('roomLinkContainer');
+          const mobileRoomId = document.querySelector('#mobileRoomId span');
+          const roomUrl = `${window.location.origin}/?id=${roomId}`;
+          roomLink.textContent = roomId; // Show just the room ID
+          mobileRoomId.textContent = roomId; // Set mobile room ID
+          
+          // Set up copy functionality for both QR code and room link
+          const copyToClipboard = async (text) => {
+            try {
+              await navigator.clipboard.writeText(roomUrl); // Still copy full URL
+              roomLinkContainer.classList.add('copied');
+              setTimeout(() => {
+                roomLinkContainer.classList.remove('copied');
+              }, 1000);
+            } catch (err) {
+              console.error('Failed to copy link:', err);
+            }
+          };
+
+          // Add click handler to QR code
+          qrCode.addEventListener("click", () => copyToClipboard(roomUrl));
+          
+          // Add click handler to room link container
+          roomLinkContainer.addEventListener("click", () => copyToClipboard(roomUrl));
+        } catch (error) {
+          console.error('Error fetching QR code:', error);
+          const qrCode = document.getElementById('qrCode');
+          qrCode.style.display = 'none';
+        }
+      }
+
+      // Initialize WebSocket with message handler
+      let currentState = null; // Store the current game state
+      let isConnected = false; // Track connection state
+      let hasInitialState = false; // Track if we have received initial state
+
+      websocketManager.onStateUpdate((state) => {
+        console.log("Received game state:", state);
+        currentState = state; // Update the stored state
+        hasInitialState = true; // Mark that we have received initial state
+
+        // If we're connected and have initial state, fetch QR code
+        if (isConnected && hasInitialState) {
+          fetchQRCode();
+        }
+
+        // Handle game state transition animation
+        if (state.state === 'running' && currentState?.state === 'lobby') {
+          console.log('Game state changed to running, current player:', playerName, 'creator:', state.creator);
+          // Only apply animation if we're not the creator (creator already has animation from button click)
+          if (playerName !== state.creator) {
+            console.log('Applying animation for non-creator player');
+            // Add fade-out animation to the entire page
+            document.body.classList.add('page-transition', 'fade-out');
+            console.log('Animation classes added:', document.body.classList.contains('page-transition'), document.body.classList.contains('fade-out'));
+            
+            // Wait for animation to complete before redirecting
+            setTimeout(() => {
+              console.log('Animation timeout completed, redirecting...');
+              if (playerType === 'observer') {
+                window.location.href = `/observer/${roomId}`;
+              } else {
+                window.location.href = `/game/${roomId}`;
+              }
+            }, 500); // Increased duration to ensure animation is visible
+          }
+        }
+
+        // Update room name with simple title
+        const roomNameElement = document.getElementById("roomName");
+        if (state.name) {
+          roomNameElement.textContent = state.name;
+        } else {
+          roomNameElement.textContent = "Unnamed Room";
+        }
+
+        // Update URLs
+        if (state.startUrl) {
+          document.getElementById("startUrl").textContent = urlToTitle(
+            state.startUrl
+          );
+          const startPreview = document.getElementById("startPreview");
+          startPreview.textContent = state.startPreview || "";
+          startPreview.style.setProperty(
+            "--background-color",
+            getComputedStyle(document.body).backgroundColor
+          );
+        }
+        if (state.endUrl) {
+          document.getElementById("endUrl").textContent = urlToTitle(
+            state.endUrl
+          );
+          const endPreview = document.getElementById("endPreview");
+          endPreview.textContent = state.endPreview || "";
+          endPreview.style.setProperty(
+            "--background-color",
+            getComputedStyle(document.body).backgroundColor
+          );
+        }
+
+        // Update rules based on game settings
+        if (state.config) {
+          console.log("Updating rules with config:", state.config);
+          updateRules({
+            ...state.config,
+            countdownTime: state.countdownTime
+          });
+        }
+
+        // Update player list
+        const playerList = document.getElementById("playerList");
+        playerList.innerHTML = "";
+
+        // Create a Set to track which players we've already shown
+        const shownPlayers = new Set();
+
+        // Add players
+        state.players.forEach((player) => {
+          if (!shownPlayers.has(player.name)) {
+            const badge = document.createElement("div");
+            badge.className = `player-badge ${
+              player.name === state.creator ? "creator" : ""
+            }`;
+
+            // Add player name
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = player.name;
+            if (player.name === state.creator) {
+              nameSpan.textContent += " 👑";
+            }
+            badge.appendChild(nameSpan);
+
+            // Add kick button if this player is the creator and the player is not the creator
+            if (playerName === state.creator && player.name !== state.creator) {
+              const kickButton = document.createElement("button");
+              kickButton.className = "kick-button";
+              kickButton.innerHTML = "×";
+              kickButton.title = "Kick player";
+              kickButton.addEventListener("click", () => {
+                websocketManager.sendMessage({
+                  type: "creator.kickUser",
+                  playerName: player.name,
+                });
+              });
+              badge.appendChild(kickButton);
+            }
+
+            playerList.appendChild(badge);
+            shownPlayers.add(player.name);
+          }
+        });
+
+        // Add observers (only if they haven't been shown as players)
+        state.observers.forEach((observer) => {
+          if (!shownPlayers.has(observer.name)) {
+            const badge = document.createElement("div");
+            badge.className = "player-badge observer";
+
+            // Add observer name
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = observer.name + (observer.name === state.creator ? " 👑 👁️" : " 👁️");
+            badge.appendChild(nameSpan);
+
+            // Add kick button if this player is the creator and the observer is not the creator
+            if (playerName === state.creator && observer.name !== state.creator) {
+              const kickButton = document.createElement("button");
+              kickButton.className = "kick-button";
+              kickButton.innerHTML = "×";
+              kickButton.title = "Kick observer";
+              kickButton.addEventListener("click", () => {
+                websocketManager.sendMessage({
+                  type: "creator.kickUser",
+                  playerName: observer.name,
+                });
+              });
+              badge.appendChild(kickButton);
+            }
+
+            playerList.appendChild(badge);
+            shownPlayers.add(observer.name);
+          }
+        });
+
+        // Update body class based on role
+        document.body.classList.remove('is-creator', 'is-player');
+        if (playerName === state.creator) {
+          document.body.classList.add('is-creator');
+        } else {
+          document.body.classList.add('is-player');
+        }
+
+        // Update start game button state
+        const startGameButtons = document.querySelectorAll("#startGame");
+        const hasEnoughPlayers = state.players.length >= 2;
+        startGameButtons.forEach(button => {
+          button.disabled = !hasEnoughPlayers;
+          button.title = hasEnoughPlayers ? "Start Game" : "Need at least 2 players to start";
+          button.classList.toggle('disabled', !hasEnoughPlayers);
+        });
+      });
+
+      // Connect to WebSocket
+      websocketManager.connect(roomId, playerName, playerType);
+
+      // Set up URL preview click handlers once
+      document.getElementById("startPreview").addEventListener("click", function() {
+        this.classList.toggle("expanded");
+      });
+      document.getElementById("endPreview").addEventListener("click", function() {
+        this.classList.toggle("expanded");
+      });
+
+      // Handle WebSocket connection
+      websocketManager.onConnection(() => {
+        isConnected = true;
+        // If we already have initial state, fetch QR code
+        if (hasInitialState) {
+          fetchQRCode();
+        }
+      });
+
+      // Handle leave room buttons (both in QR controls and main controls)
+      document.querySelectorAll("#leaveRoom").forEach(button => {
+        button.addEventListener("click", () => {
+          websocketManager.isIntentionalDisconnect = true;
+          websocketManager.sendMessage({
+            type: "leave",
+            playerName: playerName,
+          });
+          window.location.href = "/";
+        });
+      });
+
+      // Handle start game buttons (both in QR controls and main controls)
+      document.querySelectorAll("#startGame").forEach(button => {
+        button.addEventListener("click", () => {
+          // Send start game message
+          websocketManager.sendStartGame();
+        });
+      });
+
+      // Handle close room buttons (both in QR controls and main controls)
+      document.querySelectorAll("#closeRoom").forEach(button => {
+        button.addEventListener("click", () => {
+          websocketManager.isIntentionalDisconnect = true;
+          // Set isCreator flag in session storage
+          sessionStorage.setItem('isCreator', 'true');
+          websocketManager.sendMessage({
+            type: "leave",
+            playerName: playerName,
+          });
+          window.location.href = "/";
+        });
+      });
+
+      // Handle WebSocket errors
+      function handleWebSocketError(error) {
+        console.error('WebSocket error:', error);
+        const errorDisplay = document.getElementById('errorDisplay');
+        if (errorDisplay) {
+          errorDisplay.textContent = error.message || 'Connection error occurred';
+        }
+        // Store error in localStorage for the index page to display
+        localStorage.setItem('connectionError', error.message || 'Connection error occurred');
+        // Redirect to index page
+        window.location.href = '/';
+      }
+
+      // Handle WebSocket close
+      window.addEventListener("websocket-close", (event) => {
+        if (event.detail.code === 1000 && websocketManager.isIntentionalDisconnect) {
+          popupManager.showInfo(
+            event.detail.reason || "Connection attempt failed",
+            "error"
+          );
+          // Clear session storage
+          sessionStorage.removeItem("playerName");
+          sessionStorage.removeItem("playerType");
+          // Redirect to home page
+          window.location.href = "/";
+        }
+      });
+
+      // Handle player kicked
+      window.addEventListener("player-kicked", (event) => {
+        console.log("Player kicked event received:", event.detail);
+        console.log("Current player:", playerName);
+        console.log("Current state:", currentState);
+        // Show error message for all players except the creator
+        if (playerName !== currentState?.creator) {
+          console.log("Storing error message for non-creator player");
+          const errorMessage =
+            event.detail.reason || "You have been kicked from the room";
+          localStorage.setItem("connectionError", errorMessage);
+        } else {
+          console.log("Creator leaving, no error message needed");
+        }
+        // Clear session storage
+        sessionStorage.removeItem("playerName");
+        sessionStorage.removeItem("playerType");
+        // Redirect to home page
+        window.location.href = "/";
+      });
+
+      // Add scroll handler for QR code fade
+      window.addEventListener('scroll', () => {
+        // Only apply fade effect in mobile view
+        if (window.innerWidth < 1024) {
+          const qrSection = document.querySelector('.qr-section');
+          const scrollPosition = window.scrollY;
+          const fadeStart = 20; // Start fading at 20px scroll
+          const fadeEnd = 50; // Complete fade at 50px scroll
+          
+          if (scrollPosition <= fadeStart) {
+            qrSection.style.opacity = '1';
+          } else if (scrollPosition >= fadeEnd) {
+            qrSection.style.opacity = '0';
+          } else {
+            // Calculate opacity based on scroll position
+            const opacity = 1 - ((scrollPosition - fadeStart) / (fadeEnd - fadeStart));
+            qrSection.style.opacity = opacity.toString();
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

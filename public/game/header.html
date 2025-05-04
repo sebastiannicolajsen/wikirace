@@ -1,0 +1,58 @@
+<div class="page">
+  <div class="fixed-header-container" style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: white;">
+    <header class="game-header" style="padding: 0; margin: 0;">
+      <div class="container" style="padding: 0;">
+        <div class="header-content" style="display: flex; flex-direction: column; gap: 0; padding-bottom: 1rem;">
+          <div id="playerName" style="font-size: 1.1rem; font-weight: bold; width: 100%; text-align: center; color: #666;"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="url-info game-header-urls" style="display: flex; flex-direction: column; gap: 0; font-size: 1.4rem; width: 70%;">
+              <div class="url-item" style="margin: 0; padding: 0;">
+                <div class="url-header">
+                  <span id="startUrl" class="url-value"></span>
+                  <span id="endUrl" class="url-value"></span>
+                </div>
+              </div>
+            </div>
+            <div class="header-right" style="display: flex; align-items: center; gap: 0.5rem; width: 30%; justify-content: flex-end; padding: 0 0.5rem;">
+              <div id="additionsInfo" style="display: flex; flex-direction: column; font-size: 0.9rem; gap: 0; padding: 0;">
+                <!-- Additions will be added here dynamically -->
+              </div>
+              <button id="creatorLeaveButton" style="font-size: 1.8rem; padding: 0.25rem; background: white; border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; display: none; align-items: center; justify-content: center; aspect-ratio: 1; height: 100%; min-width: 2.5rem;">❌</button>
+              <button id="surrenderButton" style="font-size: 1.8rem; padding: 0.25rem; background: white; border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; display: none; align-items: center; justify-content: center; aspect-ratio: 1; height: 100%; min-width: 2.5rem;">😩</button>
+              <button id="chartButton" style="font-size: 1.8rem; padding: 0.25rem; background: white; border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; aspect-ratio: 1; height: 100%; min-width: 2.5rem;">📊</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div id="timerContainer" style="width: 100%; height: 0; overflow: hidden; transition: height 0.3s ease-in-out;"></div>
+  </div>
+
+  <main id="gameContentContainer" class="page-content" style="margin-top: 100px;">
+    <!-- Subpage content will be loaded here -->
+  </main>
+</div>
+
+<style>
+.game-header-urls {
+  background: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.url-item {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 720px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 960px;
+  }
+}
+</style> 

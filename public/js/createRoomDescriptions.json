@@ -1,0 +1,66 @@
+{
+    "roomName": {
+        "title": "Room Name",
+        "description": "The name of your game room. This will be visible to all players and observers who join."
+    },
+    "playerName": {
+        "title": "Your Name",
+        "description": "The name you'll be known by in the game and appear as for others."
+    },
+    "startUrl": {
+        "title": "Start URL",
+        "description": "The Wikipedia article where the race will begin. Use the arrows to browse through recent articles."
+    },
+    "endUrl": {
+        "title": "End URL",
+        "description": "The Wikipedia article that players need to reach to win the race. Use the arrows to browse through recent articles."
+    },
+    "countdownTime": {
+        "title": "Countdown Time",
+        "description": "The number of seconds players have to choose their next link before the game punishes them."
+    },
+    "role": {
+        "title": "Role",
+        "description": "Choose whether you want to play the game or just observe other players."
+    },
+    "continuation": {
+        "title": "Continue from pause",
+        "description": "Determines who can continue the game after a pause (happens after link selection). 'No pause' means that there is no pause, 'Owner only' means only the room creator can continue, and 'All' means any player can continue."
+    },
+    "chooser": {
+        "title": "Choose link when none clicked",
+        "description": "Determines how the next link is chosen for players who do not click a link before the timer runs out. 'Random' selects a random link, while 'First player to choose' lets the first player who clicks choose the link for all who didnt."
+    },
+    "effectCards": {
+        "title": "Effect Cards",
+        "description": "Special cards that can be used during the game to affect gameplay (after link selection). Configure which cards are available and how many each player starts with. 'Bombs' make random links unaccessible for players, 'Swaps' allows players to swap links with each other, 'Return' forces players to return to the previous link."
+    },
+    "cardUseStyle": {
+        "title": "Card use style",
+        "description": "Determines how cards are played. Cards can only be played after link selection. 'Free for all' means any player can play any card at any time until the timer runs out, 'Turn based' means that players will randomly be given a turn to play cards (until their timer runs out)."
+    },
+    "multipleCardsPerPlayer": {
+        "title": "Can a player suffer multiple cards?",
+        "description": "If enabled, a player can be affected by multiple effect cards during the same round."
+    },
+    "multipleCardsPerRound": {
+        "title": "Can players use multiple cards?",
+        "description": "If enabled, players can use multiple effect cards in a single round."
+    },
+    "creatorGive": {
+        "title": "Can owner handout effect cards?",
+        "description": "If enabled, the room creator can manually give effect cards to players during play."
+    },
+    "obtainWithTimer": {
+        "title": "Players get effect cards when...",
+        "description": "Players receive effect cards when they fail to click a link before the timer runs out (and how many times this needs to happen before the effect card is received)."
+    },
+    "obtainWithExposure": {
+        "title": "When player suffers a card",
+        "description": "Players receive effect cards when they are affected by another player's effect card (and how many times this needs to happen before the effect card is received)."
+    },
+    "additions_timer": {
+        "title": "Card use timer",
+        "description": "The number of seconds players have to use their effect cards after link selection. In turn-based mode, this is the time each player has to use their cards."
+    }
+} 

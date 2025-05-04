@@ -1,0 +1,46 @@
+<div class="container">
+  <div class="card">
+    <div class="game-content">
+      <div class="finished-message">
+        <h2>Game Over!</h2>
+        <div id="winnerInfo" class="winner-details"></div>
+      </div>
+
+      <div class="button-group" style="margin-top: 2rem; display: flex; justify-content: center">
+        <button id="returnHomeButton" class="button">Return to Home</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.finished-message {
+  text-align: center;
+  padding: 2rem;
+}
+
+.winner-details {
+  font-size: 1.2rem;
+  margin-top: 1rem;
+  color: #333;
+}
+
+.button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.button:hover {
+  background-color: #2980b9;
+}
+
+.button:active {
+  background-color: #2472a4;
+}
+</style> 

@@ -1,0 +1,199 @@
+<div class="container">
+  <div class="card">
+    <div class="pause-message">
+      <h3>Game Paused</h3>
+      <p id="waitingMessage">Waiting for players to continue...</p>
+    </div>
+
+    <div class="player-list">
+      <div id="playerStatusList">
+        <!-- Player status items will be added here -->
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button id="continueButton" class="button">Continue</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .card {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    margin-bottom: 0;
+    border: none;
+    width: 100%;
+  }
+
+  .pause-message {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 0 var(--spacing-unit);
+  }
+
+  .pause-message h3 {
+    margin-bottom: 0.5rem;
+  }
+
+  .player-list {
+    margin-bottom: 2rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #playerStatusList {
+    width: 100%;
+    max-width: 800px;
+  }
+
+  .button-group {
+    display: flex;
+    justify-content: center;
+    padding: 0 var(--spacing-unit);
+    margin-bottom: 4rem !important;
+  }
+
+  .button {
+    padding: 0.6rem 1.2rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all var(--transition-speed) ease;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 4rem;
+  }
+
+  .button:hover {
+    background-color: var(--link-hover-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  }
+
+  .button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .current-player-section {
+    margin-bottom: 2rem;
+    padding: 1rem var(--spacing-unit);
+    background-color: #f8f9fa;
+    border-radius: 0;
+    border: 1px solid #e9ecef;
+    width: 100%;
+    text-align: left;
+  }
+
+  .current-player-section h4 {
+    margin: 0 0 0.75rem 0;
+    color: #495057;
+    font-size: 1.1rem;
+  }
+
+  .current-player-url {
+    padding: 0.75rem;
+    background-color: white;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+  }
+
+  .current-player-url.effect-random {
+    border-left: 4px solid #ff6b6b;
+  }
+
+  .current-player-url.effect-user_selected {
+    border-left: 4px solid #ff6b6b;
+  }
+
+  .player-list-divider {
+    margin: 1.5rem 0;
+    padding: 0 var(--spacing-unit) 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .player-list-divider h4 {
+    margin: 0;
+    color: #495057;
+    font-size: 1.1rem;
+  }
+
+  .player-status-item {
+    margin-bottom: 1rem;
+    padding: 0.75rem var(--spacing-unit);
+    border-radius: 0;
+    background-color: #f5f5f5;
+    transition: background-color 0.2s ease;
+    width: 100%;
+    text-align: left;
+  }
+
+  .player-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: left;
+  }
+
+  .player-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+
+  .player-path {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 100%;
+    text-align: left;
+  }
+
+  .next-url {
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: left;
+  }
+
+  .next-url.effect-random {
+    color: #e03131;
+  }
+
+  .next-url.effect-user_selected {
+    color: #e03131;
+  }
+
+  .next-url.chosen-by-other {
+    color: #f0ad4e;
+  }
+
+  .chosen-by-text, .url-effect {
+    font-size: 0.8rem;
+    color: #666;
+    text-align: left;
+  }
+</style> 

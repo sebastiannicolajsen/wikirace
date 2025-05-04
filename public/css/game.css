@@ -1,0 +1,40 @@
+/* Loading and error states */
+.game-content-container .loading,
+.game-content-container .error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    font-size: 1.2em;
+    color: #666;
+}
+
+.game-content-container .error {
+    color: #d32f2f;
+}
+
+/* Subpage transitions */
+.game-content-container {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.game-content-container .subpage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    z-index: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.game-content-container .subpage.loading,
+.game-content-container .subpage.error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+} 

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Observer - WikiRace</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="page">
+      <main class="page-content">
+        <div class="container">
+          <div class="card">
+            <div class="room-info">
+              <h1 id="roomName" class="room-name">Room Name</h1>
+              <div class="url-info">
+                <div class="url-item">
+                  <div class="url-header">
+                    <span class="url-label"
+                      >📍<span id="startUrl" class="url-value"
+                        >https://en.wikipedia.org/wiki/...</span
+                      ></span
+                    >
+                  </div>
+                  <p id="startPreview" class="url-preview"></p>
+                </div>
+                <div class="url-item">
+                  <div class="url-header">
+                    <span class="url-label"
+                      >🏁
+                      <span id="endUrl" class="url-value"
+                        >https://en.wikipedia.org/wiki/...</span
+                      ></span
+                    >
+                  </div>
+                  <p id="endPreview" class="url-preview"></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="players-section">
+              <h3 class="section-title">Players</h3>
+              <div id="playerList" class="player-list">
+                <!-- Player badges will be added here -->
+              </div>
+            </div>
+
+            <div id="gameSettings" class="game-settings">
+              <!-- Game settings will be added here -->
+            </div>
+
+            <div class="button-group" style="margin-top: 2rem; display: flex; justify-content: center">
+              <button id="leaveRoom" class="button button-secondary">Leave</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import websocketManager from "/js/websocket.js";
+      import popupManager from "/js/popup.js";
+      import { urlToTitle } from "/js/wikiHelper.js";
+
+      // Get room ID from URL
+      const roomId = window.location.pathname.split("/").pop();
+
+      // Get player information from session storage
+      const playerName = sessionStorage.getItem("playerName");
+      const playerType = sessionStorage.getItem("playerType");
+
+      if (!playerName || !playerType) {
+        popupManager.showInfo(
+          "Player information not found. Please return to the home page and try again."
+        );
+        window.location.href = "/";
+        throw new Error("Player information not found");
+      }
+
+      // Initialize WebSocket with message handler
+      websocketManager.onStateUpdate((state) => {
+        console.log("Received game state:", state);
+
+        // Update room name
+        document.getElementById("roomName").textContent =
+          state.name || "Unnamed Room";
+
+        // Update URLs
+        if (state.startUrl) {
+          document.getElementById("startUrl").textContent = urlToTitle(
+            state.startUrl
+          );
+          const startPreview = document.getElementById("startPreview");
+          startPreview.textContent = state.startPreview || "";
+          startPreview.style.setProperty(
+            "--background-color",
+            getComputedStyle(document.body).backgroundColor
+          );
+          startPreview.addEventListener("click", function () {
+            this.classList.toggle("expanded");
+          });
+        }
+        if (state.endUrl) {
+          document.getElementById("endUrl").textContent = urlToTitle(
+            state.endUrl
+          );
+          const endPreview = document.getElementById("endPreview");
+          endPreview.textContent = state.endPreview || "";
+          endPreview.style.setProperty(
+            "--background-color",
+            getComputedStyle(document.body).backgroundColor
+          );
+          endPreview.addEventListener("click", function () {
+            this.classList.toggle("expanded");
+          });
+        }
+
+        // Update player list
+        const playerList = document.getElementById("playerList");
+        playerList.innerHTML = "";
+
+        // Create a Set to track which players we've already shown
+        const shownPlayers = new Set();
+
+        // Add players
+        state.players.forEach((player) => {
+          if (!shownPlayers.has(player.name)) {
+            const badge = document.createElement("div");
+            badge.className = `player-badge ${
+              player.name === state.creator ? "creator" : ""
+            }`;
+
+            // Add player name
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = player.name;
+            if (player.name === state.creator) {
+              nameSpan.textContent += " 👑";
+            }
+            badge.appendChild(nameSpan);
+
+            playerList.appendChild(badge);
+            shownPlayers.add(player.name);
+          }
+        });
+
+        // Add observers (only if they haven't been shown as players)
+        state.observers.forEach((observer) => {
+          if (!shownPlayers.has(observer.name)) {
+            const badge = document.createElement("div");
+            badge.className = "player-badge observer";
+
+            // Add observer name
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = observer.name + (observer.name === state.creator ? " 👑 👁️" : " 👁️");
+            badge.appendChild(nameSpan);
+
+            playerList.appendChild(badge);
+            shownPlayers.add(observer.name);
+          }
+        });
+      });
+
+      // Connect to WebSocket
+      websocketManager.connect(roomId, playerName, playerType);
+
+      // Handle leave room button
+      document.getElementById("leaveRoom").addEventListener("click", () => {
+        websocketManager.isIntentionalDisconnect = true;
+        websocketManager.sendMessage({
+          type: "leave",
+          playerName: playerName,
+        });
+        window.location.href = "/";
+      });
+
+      // Handle WebSocket errors
+      window.addEventListener("websocket-error", (event) => {
+        popupManager.showInfo(event.detail.message, "error");
+        // Clear session storage
+        sessionStorage.removeItem("playerName");
+        sessionStorage.removeItem("playerType");
+        // Redirect to home page
+        window.location.href = "/";
+      });
+
+      // Handle WebSocket close
+      window.addEventListener("websocket-close", (event) => {
+        if (event.detail.code === 1000) {
+          popupManager.showInfo(
+            event.detail.reason || "Connection attempt failed",
+            "error"
+          );
+          // Clear session storage
+          sessionStorage.removeItem("playerName");
+          sessionStorage.removeItem("playerType");
+          // Redirect to home page
+          window.location.href = "/";
+        }
+      });
+
+      // Handle player kicked
+      window.addEventListener("player-kicked", (event) => {
+        console.log("Player kicked event received:", event.detail);
+        // Show error message for all players except the creator
+        if (playerName !== websocketManager.gameState?.creator) {
+          console.log("Storing error message for non-creator player");
+          const errorMessage =
+            event.detail.reason || "You have been kicked from the room";
+          localStorage.setItem("connectionError", errorMessage);
+        } else {
+          console.log("Creator leaving, no error message needed");
+        }
+        // Clear session storage
+        sessionStorage.removeItem("playerName");
+        sessionStorage.removeItem("playerType");
+        // Redirect to home page
+        window.location.href = "/";
+      });
+    </script>
+  </body>
+</html> 

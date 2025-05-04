@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikirace - Running</title>
+    <link rel="stylesheet" href="https://en.wikipedia.org/w/load.php?lang=en&modules=skins.vector.styles.legacy&only=styles&skin=vector">
+    <link rel="stylesheet" href="/game/running.css">
+    <style>
+        /* Basic styling */
+        body { 
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        #wiki-content {
+            padding: 1rem;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+        #wiki-content a {
+            cursor: pointer;
+        }
+        #wiki-content a.disabled-link {
+            color: gray;
+            text-decoration: none;
+            cursor: default;
+        }
+        #loading { 
+            display: none;
+            text-align: center;
+            padding: 1rem;
+        }
+        #error { 
+            display: none; 
+            color: red;
+            text-align: center;
+            padding: 1rem;
+        }
+        /* Ensure content doesn't shift */
+        .mw-parser-output {
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+        /* Prevent horizontal scrollbar */
+        .mw-body {
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading page...</div>
+    <div id="error"></div>
+    <div id="wiki-content">
+        <!-- Wikipedia content will be loaded here -->
+    </div>
+
+    <script type="module">
+        // This script will be replaced by gameStateManager with the actual initialization
+        // The state will be passed as a parameter to initializeSubpage
+    </script>
+</body>
+</html> 

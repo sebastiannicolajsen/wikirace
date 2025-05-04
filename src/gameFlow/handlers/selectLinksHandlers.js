@@ -1,0 +1,232 @@
+/**
+ * Handles link selection-related messages and state transitions.
+ * 
+ * Messages sent to clients:
+ * - request_random_url: When a player needs to select a random URL
+ * - request_random_urls: When a player needs to select from multiple random URLs
+ * - request_continue_game: When waiting for players to continue
+ * - request_select_for_missing_players: When a player needs to select a link for other players
+ * 
+ * Messages received from clients:
+ * - player.selectLink: When a player selects a link
+ * - player.randomSelectResponse: When a player responds to a single random URL request
+ * - player.randomUrlsResponse: When a player responds to a multiple random URLs request
+ * - player.selectForMissingPlayersResponse: When a player selects links for missing players
+ * 
+ * State transitions:
+ * - RUNNING -> WAITING: When players need to select links
+ * - WAITING -> PAUSED: When all players have submitted their links
+ */
+
+const { broadcastGameState } = require("../../gameStateManager");
+const { GameStates } = require("../gameStates");
+const { stateChangeManager } = require("./stateHandlers");
+const { sendMessageWithQueue } = require("../../messageQueue");
+
+
+
+
+// List of actions this handler handles
+const HANDLED_ACTIONS = [
+  "player.selectLink",
+  "player.randomSelectResponse",
+  "player.randomUrlsResponse",
+  "player.selectForMissingPlayersResponse"
+];
+
+function handleSelectLink(room, data) {
+  const { playerName, url } = data;
+  const player = room.players.get(playerName);
+
+  if (!player) {
+    console.warn(`Player ${playerName} not found in room`);
+    return;
+  }
+
+  // If the waiting timer has expired (null) and we're in WAITING state, reject the link selection
+  if (room.waitingTimer === null && room.status === GameStates.WAITING) {
+    console.warn(`Rejecting link selection from ${playerName} after timer expiration`);
+    return;
+  }
+
+  // If the player has already submitted a link, reject the selection
+  if (room.submittedPlayers && room.submittedPlayers.has(playerName)) {
+    console.warn(`Rejecting duplicate link selection from ${playerName}`);
+    return;
+  }
+
+  // the clients url path should be updated with the new url as the next
+  player.path.push({ url, effect: "none" });
+
+  // Track that this player has submitted their link
+  if (room.waitingForPlayers) {
+    room.submittedPlayers.add(playerName);
+  }
+
+  // if all players have selected a link, continue to waiting state
+  if (
+    room.waitingForPlayers &&
+    room.submittedPlayers.size === room.players.size
+  ) {
+    stateChangeManager.changeState(room, GameStates.PAUSED, data);
+    return;
+  }
+
+  // if the room is not in waiting state, start that state
+  if (!room.waitingForPlayers) {
+    stateChangeManager.changeState(room, GameStates.WAITING, data);
+  } else {
+    broadcastGameState(room);
+  }
+}
+
+
+function handleRandomSelectResponse(room, data) {
+  const { playerName, url } = data;
+  const player = room.players.get(playerName);
+
+  if (!player) {
+    console.warn(`Player ${playerName} not found in room`);
+    return;
+  }
+
+  // Add the randomly selected URL to the player's path
+  player.path.push({ url, effect: "random" });
+  
+  // Track that this player has submitted their link
+  if (room.waitingForPlayers) {
+    room.submittedPlayers.add(playerName);
+  }
+
+  // Clear any pending random URLs for this player
+  if (room.pendingRandomUrls) {
+    room.pendingRandomUrls.delete(playerName);
+    // If no more pending URLs, clear the map
+    if (room.pendingRandomUrls.size === 0) {
+      room.pendingRandomUrls = null;
+    }
+  }
+
+  // Check for winner first
+  if (checkForWinner(room)) {
+    stateChangeManager.changeState(room, GameStates.FINISHED, data);
+    return;
+  }
+
+  // If all players have now submitted and we're not already in PAUSED state, move to paused state
+  if (room.waitingForPlayers && room.submittedPlayers.size === room.players.size && room.status !== GameStates.PAUSED) {
+    stateChangeManager.changeState(room, GameStates.PAUSED, data);
+    return;
+  }
+
+  // Always broadcast the game state after processing
+  broadcastGameState(room);
+}
+
+// Helper function to check for winner
+function checkForWinner(room) {
+  // Check if any player has reached the goal first
+  for (const [_, player] of room.players) {
+    if (player.path && player.path.length > 0) {
+      const lastPathEntry = player.path[player.path.length - 1];
+      if (lastPathEntry.url === room.endUrl) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function handleRandomUrlsResponse(room, data) {
+  console.log('Received randomUrlsResponse:', data);
+  const { playerName, urls } = data;
+  console.log(`Processing random URLs for player ${playerName}:`, urls);
+  
+  // Store the URLs for this player
+  if (!room.pendingRandomUrls) {
+    room.pendingRandomUrls = new Map();
+  }
+  room.pendingRandomUrls.set(playerName, urls);
+  console.log('Current pendingRandomUrls:', Array.from(room.pendingRandomUrls.entries()));
+
+  // If we have all the random URLs, send them to the first player who submitted
+  if (room.pendingRandomUrls.size === room.players.size - room.submittedPlayers.size) {
+    console.log('All random URLs collected, sending to first submitter');
+    const firstSubmitter = Array.from(room.submittedPlayers)[0];
+    if (firstSubmitter) {
+      const player = room.players.get(firstSubmitter);
+      if (player) {
+        // Convert the Map to an array of {playerName, urls} objects
+        const selectionsNeeded = Array.from(room.pendingRandomUrls.entries()).map(
+          ([playerName, urls]) => ({ playerName, urls })
+        );
+        console.log('Sending selections to first submitter:', selectionsNeeded);
+        
+        sendMessageWithQueue(
+          firstSubmitter,
+          {
+            type: "select_for_missing_players",
+            playerName: firstSubmitter,
+            selections: selectionsNeeded
+          },
+          player.ws
+        );
+      }
+    }
+  }
+}
+
+function handleSelectionForMissingPlayers(room, data) {
+  const { selections } = data;
+  
+  // Process each selection
+  selections.forEach(({ playerName, selectedUrl }) => {
+    const player = room.players.get(playerName);
+    if (player) {
+      // Add the selected URL to the player's path
+      player.path.push({ url: selectedUrl, effect: "user_selected" });
+      
+      // Track that this player has submitted their link
+      if (room.waitingForPlayers) {
+        room.submittedPlayers.add(playerName);
+      }
+    }
+  });
+
+  // Clear the pending random URLs
+  room.pendingRandomUrls = null;
+
+  // If all players have now submitted, move to paused state
+  if (room.waitingForPlayers && room.submittedPlayers.size === room.players.size) {
+    stateChangeManager.changeState(room, GameStates.PAUSED, data);
+    return;
+  }
+
+  broadcastGameState(room);
+}
+
+// Main handler function that routes to specific handlers
+function handle(room, data) {
+  switch (data.type) {
+    case "player.selectLink":
+      handleSelectLink(room, data);
+      break;
+    case "player.randomSelectResponse":
+      handleRandomSelectResponse(room, data);
+      break;
+    case "player.randomUrlsResponse":
+      handleRandomUrlsResponse(room, data);
+      break;
+    case "player.selectForMissingPlayersResponse":
+      handleSelectionForMissingPlayers(room, data);
+      break;
+    default:
+      console.warn(`Unknown link selection action: ${data.type}`);
+  }
+}
+
+
+module.exports = {
+  HANDLED_ACTIONS,
+  handle,
+};

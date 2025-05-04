@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game - WikiRace</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      #gameContent {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      #gameContent > * {
+        flex: 1;
+      }
+
+      /* Full page layout for running state */
+      #gameContentContainer.running-state {
+        padding: 0;
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      #gameContentContainer.running-state > * {
+        height: 100%;
+      }
+
+      /* Page transition animations */
+      @keyframes fadeOut {
+        from { 
+          transform: translateX(0);
+          visibility: visible;
+        }
+        to { 
+          transform: translateX(-100%);
+          visibility: visible;
+        }
+      }
+
+      @keyframes fadeIn {
+        from { 
+          transform: translateX(100%);
+          visibility: visible;
+        }
+        to { 
+          transform: translateX(0);
+          visibility: visible;
+        }
+      }
+
+      /* Hide all subpages by default */
+      #gameContentContainer .subpage {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        transform: translateX(0);
+        transition: transform 0.3s ease-in-out;
+      }
+
+      /* Show subpage when it's active */
+      #gameContentContainer .subpage.active {
+        display: block;
+        visibility: visible;
+        transform: translateX(0);
+      }
+
+      /* Animation classes */
+      #gameContentContainer .subpage.fade-out {
+        animation: fadeOut 0.3s ease-out forwards !important;
+        display: block !important;
+        visibility: visible !important;
+      }
+
+      #gameContentContainer .subpage.fade-in {
+        animation: fadeIn 0.3s ease-in forwards !important;
+        display: block !important;
+        visibility: visible !important;
+      }
+
+      /* Ensure container has proper positioning for absolute subpages */
+      #gameContentContainer {
+        position: relative;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Debug styles to make sure animations are visible */
+      #gameContentContainer .subpage {
+        background: white;
+        z-index: 1;
+      }
+
+      #gameContentContainer .subpage.active {
+        z-index: 2;
+      }
+
+      /* Wiki content specific styles */
+      #wiki-content {
+        opacity: 1;
+        visibility: visible;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameContent">
+      <!-- Content will be loaded dynamically -->
+    </div>
+
+    <script type="module">
+      import websocketManager from "/js/websocket.js";
+      import popupManager from "/js/popup.js";
+      import { loadGameState } from "/js/gameStateManager.js";
+      import { updateHeader } from "/game/header.js";
+
+      // Get room ID from URL
+      const roomId = window.location.pathname.split("/").pop();
+
+      // Get player information from session storage
+      const playerName = sessionStorage.getItem("playerName");
+      const playerType = sessionStorage.getItem("playerType");
+
+      if (!playerName || !playerType) {
+        popupManager.showInfo(
+          "Player information not found. Please return to the home page and try again."
+        );
+        window.location.href = "/";
+        throw new Error("Player information not found");
+      }
+
+      // Initialize header
+      async function initializeHeader() {
+        try {
+          const headerResponse = await fetch('/game/header.html');
+          const headerHtml = await headerResponse.text();
+          const gameContent = document.getElementById('gameContent');
+          gameContent.innerHTML = headerHtml;
+          
+          // --- Add Delay: Wait for DOM update after innerHTML --- 
+          await new Promise(resolve => setTimeout(resolve, 0));
+
+          // Now continue with checks and fade-in (DOM should be ready)
+          const container = document.getElementById('gameContentContainer');
+          if (container) {
+            container.classList.add('page-transition', 'fade-in');
+            setTimeout(() => {
+              container.classList.remove('page-transition', 'fade-in');
+            }, 300);
+          }
+          
+          return updateHeader;
+        } catch (error) {
+          console.error('Failed to initialize header:', error);
+          return null;
+        }
+      }
+
+      // Initialize WebSocket with message handler
+      let updateHeaderFn = null;
+      let currentSubpage = null;
+
+      // Helper function to process state updates
+      async function processStateUpdate(state) {
+          console.log("Processing state update:", state);
+          
+          // Ensure header is initialized FIRST
+          if (!updateHeaderFn) {
+              updateHeaderFn = await initializeHeader();
+              if (!document.getElementById('gameContentContainer') || !document.getElementById('timerContainer')) {
+                  console.error("#gameContentContainer or #timerContainer not found after header initialization!");
+                  return;
+              }
+          }
+
+          // Update header content
+          if (updateHeaderFn) {
+              updateHeaderFn(state);
+          }
+
+          const gameContentContainer = document.getElementById('gameContentContainer');
+          const timerContainer = document.getElementById('timerContainer');
+          
+          if (!gameContentContainer || !timerContainer) {
+              console.error("#gameContentContainer or #timerContainer not found before loading game state - unexpected!");
+              return;
+          }
+          
+
+          // Always update the game state
+          try {
+              await loadGameState(state, gameContentContainer);
+          } catch (error) {
+              console.error('Error during state update:', error);
+          }
+      }
+
+      websocketManager.onStateUpdate(processStateUpdate);
+
+      // Connect to WebSocket
+      websocketManager.connect(roomId, playerName, playerType);
+
+      // Handle WebSocket errors
+      window.addEventListener("websocket-error", (event) => {
+        popupManager.showInfo(event.detail.message, "error");
+        // Clear session storage and redirect for all errors
+        localStorage.setItem("connectionError", event.detail.message);
+        sessionStorage.removeItem("playerName");
+        sessionStorage.removeItem("playerType");
+        window.location.href = "/";
+      });
+
+      // Handle WebSocket close
+      window.addEventListener("websocket-close", (event) => {
+        if (event.detail.code === 1000) {
+          const errorMessage = event.detail.reason || "Connection attempt failed";
+          popupManager.showInfo(errorMessage, "error");
+          localStorage.setItem("connectionError", errorMessage);
+          // Clear session storage
+          sessionStorage.removeItem("playerName");
+          sessionStorage.removeItem("playerType");
+          // Redirect to home page
+          window.location.href = "/";
+        }
+      });
+
+      // Handle player kicked
+      window.addEventListener("player-kicked", (event) => {
+        console.log("Player kicked event received:", event.detail);
+        // Show error message for all players except the creator
+        if (playerName !== websocketManager.gameState?.creator) {
+          console.log("Storing error message for non-creator player");
+          const errorMessage =
+            event.detail.reason || "You have been kicked from the room";
+          localStorage.setItem("connectionError", errorMessage);
+        } else {
+          console.log("Creator leaving, no error message needed");
+        }
+        // Clear session storage
+        sessionStorage.removeItem("playerName");
+        sessionStorage.removeItem("playerType");
+        // Redirect to home page
+        window.location.href = "/";
+      });
+
+      // Add cleanup on page unload
+      window.addEventListener('beforeunload', () => {
+          const gameContentContainer = document.getElementById('gameContentContainer');
+          if (gameContentContainer) {
+              gameContentContainer.removeEventListener('animationend', handleAnimationEnd);
+          }
+      });
+    </script>
+  </body>
+</html> 

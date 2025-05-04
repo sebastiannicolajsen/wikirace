@@ -1,0 +1,64 @@
+{
+  "baseRules": [
+    "Navigate from the start Wikipedia page to the end page using only links within Wikipedia articles. The first player to reach the end page wins. The game requires at least 2 active players to start (observers do not count)."
+  ],
+  "continuation": {
+    "automatic": [],
+    "creator": [
+      "Once all have selected / been given a link, the owner needs to continue the game."
+    ],
+    "democratic": [
+      "Once all have selected / been given a link, everyone needs to agree to continue."
+    ]
+  },
+  "chooser": {
+    "random": [
+      "You have $countdownTime$s to choose a link once another player has chosen. If a player doesn't choose a link in time, a random link will be selected for them."
+    ],
+    "player": [
+      "You have $countdownTime$s to choose a link once another player has chosen. If a player doesn't choose a link in time, the first player who chose a link will select the link for them. "
+    ]
+  },
+  "additions": {
+    "enabled": [
+      "Effect cards can be used to affect other players' paths. Effect cards will be available for use after link selection."
+    ],
+    "application": {
+      "once": [
+        "A player can only suffer the effects of a single effect card during each round."
+      ],
+      "unlimited": [
+        "A player can suffer the effects of an effect card multiple times during each round."
+      ]
+    },
+    "callType": {
+      "free_for_all": [
+        "Players have $additions_timer$s to play the cards they like, all at the same time."
+      ],
+      "round_robin": [
+        "Each player has $additions_timer$s to play the cards they like, then the next player does the same (in a random order)."
+      ]
+    },
+    "bomb": [
+      "Bomb 💣 cards make random links inaccessible for other players. Each player starts with $additions_bomb$ bomb cards."
+    ],
+    "swap": [
+      "Swap 🔄 cards allow players to exchange their current link with another player. Each player starts with $additions_swap$ swap cards."
+    ],
+    "return": [
+      "Return ↩️ cards force players to go back to their previous link. Each player starts with $additions_return$ return cards."
+    ],
+    "creatorGive": [
+      "The room owner can manually give effect cards to players during the game."
+    ],
+    "obtainWithExposure": [
+      "Players receive random effect cards after being affected by $additions_obtainWithExposure$ other players' cards."
+    ],
+    "obtainWithTimer": [
+      "Players receive random effect cards after missing $additions_obtainWithTimer$ link selections."
+    ],
+    "multiplePerRound": [
+      "Players can use multiple effect cards in a single round."
+    ]
+  }
+} 

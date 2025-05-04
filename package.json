@@ -5,19 +5,40 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "scrape": "node src/scripts/scrape.js",
-    "clean-links": "node src/scripts/clean_links.js",
-    "setup-database": "node src/scripts/setup_database.js",
-    "count-links": "node src/scripts/count_links.js"
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "populate-popular": "node scripts/populatePopularPages.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "express-ws": "^5.0.2",
-    "uuid4": "^2.0.3",
-    "axios": "^1.6.2",
+    "axios": "^1.8.4",
     "cheerio": "^1.0.0-rc.12",
-    "sqlite3": "^5.1.7"
+    "express": "^4.17.1",
+    "express-ws": "^5.0.2",
+    "jsdom": "^26.1.0",
+    "qrcode": "^1.5.4",
+    "sqlite3": "^5.1.7",
+    "uuid4": "^2.0.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^2.0.15",
+    "uuid": "^9.0.1",
+    "ws": "^8.18.1"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "testTimeout": 30000,
+    "verbose": true,
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/tests/**/*.js"
+    ]
   }
 }
