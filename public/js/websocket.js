@@ -295,7 +295,8 @@ class WebSocketManager {
 
   sendPlayerSurrender() {
     this.sendMessage({
-      type: "player_surrender",
+      type: "player.surrender",
+      playerName: this.playerName
     });
   }
 

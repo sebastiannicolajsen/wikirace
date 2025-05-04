@@ -177,7 +177,7 @@ function getGameState(room) {
             eligiblePlayers: room.eligiblePlayers || [],
             currentPlayerIndex: room.currentPlayerIndex || 0,
             additionEndTime: room.additionEndTime || null,
-            readyPlayers: Array.from(room.readyPlayers || new Set())
+            readyPlayers: Array.from(room.readyToContinue || new Set())
         } : null
     };
 

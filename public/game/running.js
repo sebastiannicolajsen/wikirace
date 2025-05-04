@@ -37,7 +37,6 @@ function updateTimer(duration, startTime) {
 
     const timerElement = document.getElementById(TIMER_ELEMENT_ID);
     if (!timerElement) {
-        console.error(`Timer element with ID '${TIMER_ELEMENT_ID}' not found.`);
         return;
     }
 
@@ -81,7 +80,6 @@ async function fetchWikiContent(url) {
         const content = await response.text();
         return content;
     } catch (error) {
-        console.error('Error fetching wiki content:', error);
         throw error;
     }
 }
@@ -93,7 +91,6 @@ function processWikiContent(content) {
     // Get the main content
     const mainContent = doc.querySelector('#mw-content-text') || doc.querySelector('.mw-parser-output');
     if (!mainContent) {
-        console.error('processWikiContent: Could not find main content element');
         throw new Error('Could not find main content');
     }
 
@@ -343,80 +340,39 @@ function closeCurrentPopup() {
 // Function to save pending selections to localStorage
 function savePendingSelections() {
     if (pendingSelections.length > 0) {
-        console.log('Saving pending selections:', JSON.stringify(pendingSelections, null, 2));
         localStorage.setItem('pendingSelections', JSON.stringify(pendingSelections));
     } else {
-        console.log('No pending selections to save, clearing localStorage');
         localStorage.removeItem('pendingSelections');
     }
 }
 
 // Function to load pending selections from localStorage
 function loadPendingSelections() {
-    const saved = localStorage.getItem('pendingSelections');
-    console.log('Loading pending selections for player:', websocketManager.playerName);
-
-    if (saved) {
-        console.log('Found saved selections, loading them');
-        pendingSelections = JSON.parse(saved);
-        // If we have pending selections, process them
-        if (pendingSelections.length > 0) {
-            console.log('Processing loaded selections:', JSON.stringify(pendingSelections, null, 2));
-            processNextSelection();
-        }
-    } else {
-        console.log('No saved selections found');
-        pendingSelections = [];
+    const savedSelections = localStorage.getItem('pendingSelections');
+    if (savedSelections) {
+        pendingSelections = JSON.parse(savedSelections);
+        processLoadedSelections();
     }
 }
 
-// Function to process next selection
-function processNextSelection() {
-    if (pendingSelections.length === 0) {
-        // If we've processed all selections, send the response
-        if (currentSelections.length > 0) {
-            websocketManager.sendSelectForMissingPlayersResponse(currentSelections);
-            currentSelections = []; // Clear selections after sending
-            localStorage.removeItem('pendingSelections'); // Clear saved selections
+function processLoadedSelections() {
+    pendingSelections.forEach(selection => {
+        if (selection.playerName === websocketManager.playerName) {
+            showSelectionPopup(selection.playerName, selection.urls);
         }
-        return;
-    }
+    });
+}
 
-    const selection = pendingSelections[0];
-    console.log('Processing selection:', JSON.stringify(selection, null, 2));
-    const urls = selection.urls;
-    console.log('URLs for selection:', JSON.stringify(urls, null, 2));
-    if (urls && urls.length > 0) {
-        showSelectionPopup(selection.playerName, urls, (selectedUrl) => {
-            // Store the selection
-            currentSelections.push({
-                playerName: selection.playerName,
-                selectedUrl: selectedUrl
-            });
-            
-            // Remove the processed selection
-            pendingSelections.shift();
-            // Save updated pending selections
-            savePendingSelections();
-            
-            // Process next selection if any
-            processNextSelection();
-        });
-    } else {
-        console.error('No URLs found in selection:', selection);
+function processSelection(selection, urls) {
+    if (selection.playerName === websocketManager.playerName) {
+        showSelectionPopup(selection.playerName, urls);
     }
 }
 
-// Function to show selection popup for missing player
-function showSelectionPopup(playerName, urls, onSelect) {
-    console.log('Showing selection popup for', playerName, 'with URLs:', JSON.stringify(urls, null, 2));
-    
-    // Create URL list HTML
+function showSelectionPopup(playerName, urls) {
     const urlArray = Array.isArray(urls) ? urls : [urls];
-    console.log('Processing URL array:', JSON.stringify(urlArray, null, 2));
 
     if (urlArray.length === 0) {
-        console.error('No URLs to display in popup');
         return;
     }
 
@@ -455,7 +411,6 @@ function showSelectionPopup(playerName, urls, onSelect) {
 
     urlArray.forEach(url => {
         if (!url) {
-            console.warn('Skipping null/undefined URL');
             return;
         }
         const urlItem = document.createElement('div');
@@ -479,7 +434,6 @@ function showSelectionPopup(playerName, urls, onSelect) {
         urlItem.addEventListener('click', () => {
             websocketManager.sendSelectionForOthers([url]);
             closeCurrentPopup();
-            if (onSelect) onSelect(url);
         });
         urlList.appendChild(urlItem);
     });
@@ -532,7 +486,6 @@ function showSelectionPopup(playerName, urls, onSelect) {
 // Main state update handler
 export async function handleStateUpdate(state, subpageElement) {
     if (!state || !subpageElement) {
-        console.error('Invalid state or subpage element');
         return;
     }
 
@@ -546,35 +499,39 @@ export async function handleStateUpdate(state, subpageElement) {
             throw new Error('Could not determine current URL');
         }
 
-        // Update current player URL
-        currentPlayerUrl = currentUrl;
+        // Only fetch and process content if the URL has changed
+        if (currentUrl !== currentPlayerUrl) {
+            // Update current player URL
+            currentPlayerUrl = currentUrl;
 
-        // Fetch and process content
-        try {
-            const content = await fetchWikiContent(currentUrl);
-            const processedContent = processWikiContent(content);
-            
-            // Update subpage content
-            subpageElement.innerHTML = '';
-            subpageElement.appendChild(processedContent);
-            subpageElement.style.cssText = `
-                display: block;
-                visibility: visible;
-                opacity: 1;
-                transform: none;
-                position: relative;
-                z-index: 1;
-            `;
-        } catch (error) {
-            console.error('Error fetching wiki content:', error);
-            // Show error message in subpage
-            subpageElement.innerHTML = `
-                <div style="padding: 2rem; text-align: center;">
-                    <h3>Error loading content</h3>
-                    <p>Could not load the Wikipedia page. Please try again.</p>
-                </div>
-            `;
+            // Fetch and process content
+            try {
+                const content = await fetchWikiContent(currentUrl);
+                const processedContent = processWikiContent(content);
+                
+                // Update subpage content
+                subpageElement.innerHTML = '';
+                subpageElement.appendChild(processedContent);
+            } catch (error) {
+                // Show error message in subpage
+                subpageElement.innerHTML = `
+                    <div style="padding: 2rem; text-align: center;">
+                        <h3>Error loading content</h3>
+                        <p>Could not load the Wikipedia page. Please try again.</p>
+                    </div>
+                `;
+            }
         }
+
+        // Ensure subpage is visible
+        subpageElement.style.cssText = `
+            display: block;
+            visibility: visible;
+            opacity: 1;
+            transform: none;
+            position: relative;
+            z-index: 1;
+        `;
 
         // 2. Handle timer
         if (state.timeLimit && state.waitingTimerStartTime) {
@@ -620,20 +577,17 @@ export async function handleStateUpdate(state, subpageElement) {
         if (state.submittedPlayers?.[0] === playerName) {
             const saved = localStorage.getItem('pendingSelections');
             if (saved) {
-                console.log('Found saved selections after state update, loading them');
                 pendingSelections = JSON.parse(saved);
                 if (pendingSelections.length > 0) {
-                    console.log('Processing loaded selections after state update:', JSON.stringify(pendingSelections, null, 2));
                     // Close any existing popup first
                     closeCurrentPopup();
                     // Then show our selection popup
-                    processNextSelection();
+                    processLoadedSelections();
                 }
             }
         }
 
     } catch (error) {
-        console.error('Error in handleStateUpdate:', error);
         // Ensure subpage is visible even if there's an error
         subpageElement.style.cssText = `
             display: block;
@@ -711,19 +665,14 @@ window.addEventListener('request-random-urls', (event) => {
 // Add event listener for select-for-missing-players
 window.addEventListener('select_for_missing_players', (event) => {
     const selections = event.detail.selections;
-    console.log('select_for_missing_players event received by player:', websocketManager.playerName);
-    
     if (selections && selections.length > 0) {
         // Store selections and start processing
         pendingSelections = [...selections];
         // Save pending selections
         savePendingSelections();
-        console.log('Stored pending selections:', JSON.stringify(pendingSelections, null, 2));
-        // Process the first selection immediately
-        processNextSelection();
+        processLoadedSelections();
     }
 });
-
 
 // Export the ready promise
 export const ready = Promise.resolve();

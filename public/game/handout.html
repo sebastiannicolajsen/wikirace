@@ -20,27 +20,33 @@
             max-width: 800px;
             margin: 0 auto;
             box-sizing: border-box;
+            margin-top: 60px; /* Increased margin to prevent overlap */
         }
         /* Timer styling */
         #gameTimer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background-color: #e0e0e0;
-            z-index: 1000;
-        }
-        .timer-text {
-            position: fixed;
-            top: 8px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            z-index: 1001;
+            position: fixed !important;
+            top: 80px !important; /* Position below header */
+            left: 0 !important;
+            right: 0 !important;
+            height: 50px !important;
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            z-index: 99999 !important;
+            text-align: center !important;
+            color: #000000 !important;
+            font-size: 1.5rem !important;
+            padding: 10px 0 !important;
+            font-weight: bold !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-bottom: 2px solid rgba(224, 224, 224, 0.9) !important;
+            pointer-events: none !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            will-change: background;
+            transform: translateZ(0);
+            backface-visibility: hidden;
         }
         /* Content styling */
         .handout-message {
@@ -88,16 +94,15 @@
     </style>
 </head>
 <body>
-    <div id="gameTimer"></div>
-    <div class="timer-text">--</div>
+    <div id="gameTimer" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">--</div>
     <div id="handout-content">
         <div class="handout-message">
             <h3>Play your effects!</h3>
-            <p>Choose an addition to use...</p>
+            <p>Choose an effect to use...</p>
         </div>
 
         <div class="additions-section">
-            <h3 class="section-title">Your Additions</h3>
+            <h3 class="section-title">Your Effects</h3>
             <div id="playerAdditions" class="additions-list">
                 <!-- Addition items will be added here -->
             </div>

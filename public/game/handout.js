@@ -1,9 +1,11 @@
 import websocketManager from "/js/websocket.js";
 import popupManager from "/js/popup.js";
+import { urlToTitle } from "/js/wikiHelper.js";
 
 // --- Timer Management ---
 let gameTimer = null;
 const TIMER_ELEMENT_ID = 'gameTimer';
+let totalDuration = null; // Store the total duration at module level
 
 // Add at the top of the file, after imports
 let additionNotificationQueue = [];
@@ -13,57 +15,65 @@ function formatTime(seconds) {
     return `${Math.ceil(seconds)}s`;
 }
 
-// Function to update the timer display
-function updateTimer(endTime) {
+// Function to start/update the game timer based on server state
+function updateTimer(endTime, isEligible = true) {
     if (gameTimer) {
-        clearInterval(gameTimer);
+        cancelAnimationFrame(gameTimer);
         gameTimer = null;
     }
 
     const timerElement = document.getElementById(TIMER_ELEMENT_ID);
-    const timerTextElement = document.querySelector('.timer-text');
-    if (!timerElement || !timerTextElement) {
-        console.error(`Timer elements not found.`);
+    if (!timerElement) {
+        console.error(`Timer element with ID '${TIMER_ELEMENT_ID}' not found.`);
         return;
     }
 
-    // Get the initial duration from the end time
-    const initialDuration = (endTime - Date.now()) / 1000;
-
+    // Only calculate total duration if it hasn't been set yet
+    if (totalDuration === null) {
+        totalDuration = (endTime - Date.now()) / 1000;
+    }
+    
     function updateTimerDisplay() {
         const now = Date.now();
         const remaining = Math.max(0, (endTime - now) / 1000);
-        const progress = (remaining / initialDuration) * 100;
+        const formattedTime = formatTime(remaining);
         
-        // Update the timer text and progress bar
-        timerTextElement.textContent = formatTime(remaining);
-        timerElement.style.background = `linear-gradient(to right, #2196F3 ${progress}%, #e0e0e0 ${progress}%)`;
+        // Calculate progress percentage based on the total duration
+        const progress = (remaining / totalDuration) * 100;
+        
+        // Update the timer text and background
+        timerElement.textContent = formattedTime;
+        // Use rgb(226, 229, 234) for active players, lighter gray for others
+        const activeColor = isEligible ? 'rgb(226, 229, 234)' : 'rgb(240, 240, 240)';
+        timerElement.style.background = `linear-gradient(to right, ${activeColor} ${progress}%, white ${progress}%)`;
 
         if (remaining <= 0) {
-            clearInterval(gameTimer);
-            timerTextElement.textContent = "0s";
-            timerElement.style.background = "#e0e0e0";
+            cancelAnimationFrame(gameTimer);
+            timerElement.textContent = "0s";
+            timerElement.style.background = "white";
             gameTimer = null;
+            totalDuration = null; // Reset total duration when timer completes
+        } else {
+            gameTimer = requestAnimationFrame(updateTimerDisplay);
         }
     }
 
     updateTimerDisplay();
-    gameTimer = setInterval(updateTimerDisplay, 1000);
 }
 
 // Function to stop the timer
 function stopTimer() {
     if (gameTimer) {
-        clearInterval(gameTimer);
+        cancelAnimationFrame(gameTimer);
         gameTimer = null;
     }
     
     const timerElement = document.getElementById(TIMER_ELEMENT_ID);
-    const timerTextElement = document.querySelector('.timer-text');
-    if (timerElement && timerTextElement) {
-        timerTextElement.textContent = "--";
-        timerElement.style.background = "#e0e0e0";
+    if (timerElement) {
+        timerElement.textContent = "--";
+        timerElement.style.background = "rgba(224, 224, 224, 0.9)";
     }
+    totalDuration = null; // Reset total duration when timer is stopped
 }
 
 // Function to get emoji for addition type
@@ -138,9 +148,9 @@ function showTargetSelectionPopup(additionType, state) {
             ${eligiblePlayers.map(player => {
                 const lastLink = player.path[player.path.length - 1];
                 const effectEmoji = lastLink?.effect && ['swapped', 'returned', 'bombed'].includes(lastLink.effect) 
-                    ? getAdditionEmoji(lastLink.effect.replace('ed', '')) 
+                    ? getAdditionEmoji(lastLink.effect.replace('ed', '')) + ' ' 
                     : '';
-                const linkText = formatLinkTitle(lastLink?.url);
+                const linkText = lastLink?.url ? urlToTitle(lastLink.url) : 'No links yet';
                 return `
                     <button class="target-button" data-player="${player.name}" style="
                         padding: 0.75rem;
@@ -203,7 +213,9 @@ function showTargetSelectionPopup(additionType, state) {
 }
 
 function setupHandoutPage(state, subpageElement) {
+    console.log('Setting up handout page with state:', state);
     const isEligible = state.additionState?.eligiblePlayers?.includes(websocketManager.playerName);
+    const isReady = state.additionState?.readyPlayers?.includes(websocketManager.playerName);
     
     // Find the content container
     const contentContainer = subpageElement.querySelector("#handout-content");
@@ -211,17 +223,23 @@ function setupHandoutPage(state, subpageElement) {
         console.error("Content container not found");
         return;
     }
+
+    // Add spacing to prevent content from being hidden under header and timer
+    contentContainer.style.cssText = `
+        margin-top: 80px;  /* Add space for header and timer */
+        padding: 20px;
+    `;
     
-    if (isEligible) {
-        // Show the full interface for eligible players
+    if (isEligible && !isReady) {
+        // Show the full interface for eligible players who haven't used their addition
         contentContainer.innerHTML = `
             <div class="handout-message">
                 <h3>Play your effects!</h3>
-                <p>Choose an addition to use...</p>
+                <p>Choose an effect to use...</p>
             </div>
 
             <div class="additions-section">
-                <h3 class="section-title">Your Additions</h3>
+                <h3 class="section-title">Your Effects</h3>
                 <div id="playerAdditions" class="additions-list">
                     <!-- Addition items will be added here -->
                 </div>
@@ -232,8 +250,10 @@ function setupHandoutPage(state, subpageElement) {
 
         // Update timer if we have an end time
         if (state.additionState?.additionEndTime) {
-            updateTimer(state.additionState.additionEndTime);
+            console.log('Starting timer with end time:', state.additionState.additionEndTime);
+            updateTimer(state.additionState.additionEndTime, true);
         } else {
+            console.log('No end time found in state, stopping timer');
             stopTimer();
         }
 
@@ -298,18 +318,24 @@ function setupHandoutPage(state, subpageElement) {
         });
 
     } else {
-        // Show simplified interface for non-eligible players
+        // Get list of eligible players who haven't used their effects
+        const activePlayers = state.additionState?.eligiblePlayers?.filter(
+            player => !state.additionState?.readyPlayers?.includes(player)
+        ) || [];
+
+        // Show simplified interface for non-eligible players or players who have used their addition
         contentContainer.innerHTML = `
             <div class="handout-message">
-                <h3>Play your effects!</h3>
-                <p>Other players are playing effect cards...</p>
+                <h3>${activePlayers.map(name => `<span style="color: #0066cc;">${name}</span>`).join(', ')} are choosing to play effect cards!</h3>
             </div>
         `;
 
         // Update timer if we have an end time
         if (state.additionState?.additionEndTime) {
-            updateTimer(state.additionState.additionEndTime);
+            console.log('Starting timer with end time:', state.additionState.additionEndTime);
+            updateTimer(state.additionState.additionEndTime, false);
         } else {
+            console.log('No end time found in state, stopping timer');
             stopTimer();
         }
     }

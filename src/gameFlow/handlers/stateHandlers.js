@@ -182,7 +182,7 @@ function handleLobbyState(room, data) {
     room.currentUrl = null;
     room.hasAdditions = false;
     room.nextAddition = null;
-    room.players = []; // Reset players array
+    room.players = new Map(); // Reset players to a new empty Map
     room.startUrl = null;
     room.endUrl = null;
     
@@ -272,7 +272,6 @@ function handleWaitingState(room, data) {
   
   // Set up the new timer
   room.waitingTimer = setTimeout(() => {
-    if (DEBUG) console.log(`[stateHandlers] Waiting timer expired for room ${room.id}`);
     handleWaitingTimerExpired(room, data);
   }, waitingDuration);
 
@@ -307,7 +306,6 @@ function handlePausedState(room, data) {
       const message = {
         type: "request_continue_game",
       };
-      if (DEBUG) console.log(`[stateHandlers] Sending message to ${room.creator}:`, JSON.stringify(message));
       sendMessageWithQueue(
         room.creator,
         message,
@@ -322,7 +320,6 @@ function handlePausedState(room, data) {
       const message = {
         type: "request_continue_game",
       };
-      if (DEBUG) console.log(`[stateHandlers] Sending message to ${playerName}:`, JSON.stringify(message));
       sendMessageWithQueue(
         playerName,
         message,
@@ -341,20 +338,32 @@ function handleHandoutState(room, data) {
     return handleStateChange(room, GameStates.RUNNING, data, true);
   }
 
-  // Initialize addition state if not already done
-  if (!room.additionOrder) {
-    // Create a random order of players for round-robin
-    room.additionOrder = Array.from(room.players.keys())
-      .sort(() => Math.random() - 0.5);
-    room.currentPlayerIndex = 0;
-  }
+  // Reset state when entering HANDOUT state
+  room.readyToContinue = new Set();
+  room.eligiblePlayers = [];
+
+  // Get all player names from the room's players Map
+  const playerNames = Array.from(room.players.keys());
+  console.log(`[stateHandlers] Available players:`, playerNames);
+
+  // Always initialize addition state when entering HANDOUT
+  // Create a random order of players for round-robin
+  room.additionOrder = playerNames.sort(() => Math.random() - 0.5);
+  console.log(`[stateHandlers] Created addition order:`, room.additionOrder);
+  
+  // Reset current player index
+  room.currentPlayerIndex = 0;
 
   // Always set up eligible players based on call type
   if (room.config.additions_callType === 'free_for_all') {
-    room.eligiblePlayers = Array.from(room.players.keys());
+    room.eligiblePlayers = playerNames;
   } else { // round_robin
     // Only include the current player in eligible players
-    room.eligiblePlayers = [room.additionOrder[room.currentPlayerIndex]];
+    const currentPlayer = room.additionOrder[room.currentPlayerIndex];
+    console.log(`[stateHandlers] Setting eligible player for round-robin:`, currentPlayer);
+    if (currentPlayer) {
+      room.eligiblePlayers = [currentPlayer];
+    }
   }
 
   // Set up timer if not already done
@@ -398,7 +407,10 @@ function handleAdditionTimerExpired(room, data) {
         handleAdditionTimerExpired(room, data);
       }, room.config.additions_timer * 1000);
       // Update eligible players to only include current player
-      room.eligiblePlayers = [room.additionOrder[room.currentPlayerIndex]];
+      const currentPlayer = room.additionOrder[room.currentPlayerIndex];
+      if (currentPlayer) {
+        room.eligiblePlayers = [currentPlayer];
+      }
       // Broadcast the updated state
       broadcastGameState(room);
     }
@@ -507,7 +519,6 @@ function handleWaitingTimerExpired(room, data) {
             type: "request_random_url",
             count: 1
           };
-          if (DEBUG) console.log(`[stateHandlers] Sending message to ${playerName}:`, JSON.stringify(message));
           sendMessageWithQueue(
             playerName,
             message,
@@ -529,7 +540,6 @@ function handleWaitingTimerExpired(room, data) {
             type: "request_random_urls",
             count: 5
           };
-          if (DEBUG) console.log(`[stateHandlers] Sending message to ${playerName}:`, JSON.stringify(message));
           sendMessageWithQueue(
             playerName,
             message,
@@ -542,7 +552,6 @@ function handleWaitingTimerExpired(room, data) {
 
   // Broadcast the updated state
   // No state change here, but we broadcast the updated missed links
-  if (DEBUG) console.log(`[stateHandlers] Broadcasting game state after waiting timer expired for room ${room.id}`);
   broadcastGameState(room);
 }
 
@@ -558,27 +567,21 @@ function handleStateChange(room, newState, data = {}, isNested = false) {
     let nextState = newState;
     switch (newState) {
         case GameStates.LOBBY:
-            if (DEBUG) console.log(`[stateHandlers] Handling LOBBY state for room ${room.id}`);
             nextState = handleLobbyState(room, data);
             break;
         case GameStates.RUNNING:
-            if (DEBUG) console.log(`[stateHandlers] Handling RUNNING state for room ${room.id}`);
             nextState = handleRunningState(room, data);
             break;
         case GameStates.WAITING:
-            if (DEBUG) console.log(`[stateHandlers] Handling WAITING state for room ${room.id}`);
             nextState = handleWaitingState(room, data);
             break;
         case GameStates.PAUSED:
-            if (DEBUG) console.log(`[stateHandlers] Handling PAUSED state for room ${room.id}`);
             nextState = handlePausedState(room, data);
             break;
         case GameStates.HANDOUT:
-            if (DEBUG) console.log(`[stateHandlers] Handling HANDOUT state for room ${room.id}`);
             nextState = handleHandoutState(room, data);
             break;
         case GameStates.FINISHED:
-            if (DEBUG) console.log(`[stateHandlers] Handling FINISHED state for room ${room.id}`);
             nextState = handleFinishedState(room, data);
             break;
         default:
@@ -590,8 +593,7 @@ function handleStateChange(room, newState, data = {}, isNested = false) {
     if (!isNested) {
         const oldState = room.status;
         room.status = nextState;
-        if (DEBUG) console.log(`[stateHandlers] State changed successfully from ${oldState} to ${nextState} for room ${room.id}`);
-        if (DEBUG) console.log(`[stateHandlers] Broadcasting game state after state change for room ${room.id} (${room.status})`);
+        console.log(`[stateHandlers] State changed successfully from ${oldState} to ${nextState} for room ${room.id}`);
         broadcastGameState(room);
     }
 

@@ -94,9 +94,19 @@ function handleUseAdditionResponse(room, data) {
     }
 
     // Verify player is eligible to use additions
-    if (!room.eligiblePlayers.includes(playerName)) {
-        console.warn(`[additionHandlers] Player ${playerName} is not eligible to use additions at this time`);
-        return;
+    if (room.config.additions_callType === 'round_robin') {
+        // In round-robin mode, check if this is the current player
+        const currentPlayer = room.additionOrder[room.currentPlayerIndex];
+        if (playerName !== currentPlayer) {
+            console.warn(`[additionHandlers] Player ${playerName} is not the current player in round-robin mode`);
+            return;
+        }
+    } else {
+        // In free_for_all mode, check if player is in eligiblePlayers
+        if (!room.eligiblePlayers || !room.eligiblePlayers.includes(playerName)) {
+            console.warn(`[additionHandlers] Player ${playerName} is not eligible to use additions at this time`);
+            return;
+        }
     }
 
     const targetPlayer = room.players.get(selection.target);
@@ -221,7 +231,7 @@ function handleUseAdditionResponse(room, data) {
             room.additionTimer = null;
         }
 
-        room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.eligiblePlayers.length;
+        room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.additionOrder.length;
         if (room.currentPlayerIndex === 0) {
             // We've gone through all players, move to running state
             if (DEBUG) console.log(`[additionHandlers] All players have used additions, moving to RUNNING state`);
@@ -234,7 +244,7 @@ function handleUseAdditionResponse(room, data) {
                 handleAdditionTimerExpired(room, data);
             }, room.config.additions_timer * 1000);
             // Update eligible players to only include current player
-            room.eligiblePlayers = [room.eligiblePlayers[room.currentPlayerIndex]];
+            room.eligiblePlayers = [room.additionOrder[room.currentPlayerIndex]];
             if (DEBUG) console.log(`[additionHandlers] Moving to next player: ${room.eligiblePlayers[0]}`);
             // Broadcast the updated state since we didn't change states
             broadcastGameState(room);
@@ -264,15 +274,47 @@ function handleReadyToContinue(room, data) {
     // Add player to ready set
     room.readyToContinue.add(playerName);
 
-    // If all players are ready, continue to running state
-    if (room.readyToContinue.size === room.players.size) {
-        room.readyToContinue = null;
-        if (DEBUG) console.log(`[additionHandlers] All players are ready, moving to RUNNING state`);
-        handleStateChange(room, GameStates.RUNNING, data);
-    } else {
-        if (DEBUG) console.log(`[additionHandlers] Not all players are ready yet (${room.readyToContinue.size}/${room.players.size})`);
-        // Not all players are ready, broadcast the updated state
-        broadcastGameState(room);
+    if (room.config.additions_callType === 'free_for_all') {
+        // In free_for_all mode, check if all players are ready
+        if (room.readyToContinue.size === room.players.size) {
+            room.readyToContinue = null;
+            if (DEBUG) console.log(`[additionHandlers] All players are ready, moving to RUNNING state`);
+            handleStateChange(room, GameStates.RUNNING, data);
+        } else {
+            if (DEBUG) console.log(`[additionHandlers] Not all players are ready yet (${room.readyToContinue.size}/${room.players.size})`);
+            // Not all players are ready, broadcast the updated state
+            broadcastGameState(room);
+        }
+    } else { // round_robin mode
+        // Clear existing timer
+        if (room.additionTimer) {
+            clearTimeout(room.additionTimer);
+            room.additionTimer = null;
+        }
+
+        // Move to next player
+        room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.additionOrder.length;
+        
+        if (room.currentPlayerIndex === 0) {
+            // We've gone through all players, move to running state
+            if (DEBUG) console.log(`[additionHandlers] All players have used additions, moving to RUNNING state`);
+            handleStateChange(room, GameStates.RUNNING, data);
+        } else {
+            // Reset timer for next player
+            room.additionEndTime = Date.now() + (room.config.additions_timer * 1000);
+            // Start new timer
+            room.additionTimer = setTimeout(() => {
+                handleAdditionTimerExpired(room, data);
+            }, room.config.additions_timer * 1000);
+            // Update eligible players to only include current player
+            const currentPlayer = room.additionOrder[room.currentPlayerIndex];
+            if (currentPlayer) {
+                room.eligiblePlayers = [currentPlayer];
+            }
+            if (DEBUG) console.log(`[additionHandlers] Moving to next player: ${currentPlayer}`);
+            // Broadcast the updated state
+            broadcastGameState(room);
+        }
     }
 }
 

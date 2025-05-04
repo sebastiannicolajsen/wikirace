@@ -163,6 +163,7 @@ function resetState() {
 }
 
 export async function loadGameState(state, gameContentContainer) { 
+    console.log('State update:', state.state, 'version:', state.version);
     // Check state version first
     if (state.version && state.version < lastReceivedStateVersion) {
         console.log(`Ignoring outdated state version ${state.version} (current: ${lastReceivedStateVersion})`);
@@ -207,8 +208,34 @@ export async function loadGameState(state, gameContentContainer) {
     // Get timer container
     const timerContainer = document.getElementById('timerContainer');
 
-    // Clear existing content and show loading state
-    subpageElement.innerHTML = '<div class="loading">Loading...</div>';
+    // Check if we need to reload the subpage
+    const currentSubpageType = subpageElement.dataset.subpageType;
+    const newSubpageType = state.state;
+    
+    // For running/waiting states, we don't want to show loading state if the URL hasn't changed
+    const isRunningOrWaiting = state.state === 'running' || state.state === 'waiting';
+    const currentUrl = subpageElement.dataset.currentUrl;
+    const newUrl = getCurrentPlayerUrl(state);
+    const urlChanged = currentUrl !== newUrl;
+    
+    // Only show loading state if:
+    // 1. The subpage type has changed AND we're not in running/waiting state, OR
+    // 2. We're in running/waiting state AND the URL has changed
+    const shouldShowLoading = (currentSubpageType !== newSubpageType && !isRunningOrWaiting) || 
+                            (isRunningOrWaiting && urlChanged);
+    
+    if (shouldShowLoading) {
+        console.log(`Showing loading state: type changed=${currentSubpageType !== newSubpageType}, not running/waiting=${!isRunningOrWaiting}, url changed=${urlChanged}`);
+        subpageElement.innerHTML = '<div class="loading">Loading...</div>';
+    } else {
+        console.log(`Skipping loading state: type unchanged (${newSubpageType}) and URL unchanged`);
+    }
+    
+    // Always update the subpage type and URL
+    subpageElement.dataset.subpageType = newSubpageType;
+    if (isRunningOrWaiting) {
+        subpageElement.dataset.currentUrl = newUrl;
+    }
     
     try {
         // Handle different states
@@ -244,6 +271,16 @@ export async function loadGameState(state, gameContentContainer) {
             position: relative;
             z-index: 1;
         `;
+
+        // Hide header if in finished state, show otherwise
+        const headerContainer = document.querySelector('.fixed-header-container');
+        if (headerContainer) {
+            if (state.state === 'finished') {
+                headerContainer.style.display = 'none';
+            } else {
+                headerContainer.style.display = '';
+            }
+        }
     } catch (error) {
         console.error('Error during state update:', error);
         subpageElement.innerHTML = `<div class="error">Error loading state: ${error.message}</div>`;
