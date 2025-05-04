@@ -174,6 +174,13 @@ export async function loadGameState(state, gameContentContainer) {
         lastReceivedStateVersion = state.version;
     }
 
+    // Handle lobby state transition
+    if (state.state === 'lobby') {
+        console.log('Received lobby state, redirecting to room');
+        window.location.href = `/room/${state.roomName}`;
+        return;
+    }
+
     // Check if containers were provided
     if (!gameContentContainer) {
         console.error("loadGameState: gameContentContainer element was not provided!");

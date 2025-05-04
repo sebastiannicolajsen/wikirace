@@ -182,7 +182,6 @@ function handleLobbyState(room, data) {
     room.currentUrl = null;
     room.hasAdditions = false;
     room.nextAddition = null;
-    room.players = new Map(); // Reset players to a new empty Map
     room.startUrl = null;
     room.endUrl = null;
     
@@ -461,10 +460,6 @@ function handleFinishedState(room, data) {
 
   if (DEBUG) console.log(`[stateHandlers] Completed handleFinishedState for room ${room.id}, winner: ${room.winner}`);
   
-  // Always broadcast the state when finished
-  if (DEBUG) console.log(`[stateHandlers] Broadcasting FINISHED state for room ${room.id}`);
-  broadcastGameState(room);
-  
   return GameStates.FINISHED;
 }
 
@@ -594,7 +589,11 @@ function handleStateChange(room, newState, data = {}, isNested = false) {
         const oldState = room.status;
         room.status = nextState;
         console.log(`[stateHandlers] State changed successfully from ${oldState} to ${nextState} for room ${room.id}`);
+        if (DEBUG) console.log(`[stateHandlers] Broadcasting state for room ${room.id}`);
         broadcastGameState(room);
+        if (DEBUG) console.log(`[stateHandlers] State broadcast complete for room ${room.id}`);
+    } else {
+        if (DEBUG) console.log(`[stateHandlers] Skipping broadcast for nested state change in room ${room.id}`);
     }
 
     return nextState;

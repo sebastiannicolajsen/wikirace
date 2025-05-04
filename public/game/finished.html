@@ -1,46 +1,372 @@
 <div class="container">
-  <div class="card">
-    <div class="game-content">
-      <div class="finished-message">
-        <h2>Game Over!</h2>
-        <div id="winnerInfo" class="winner-details"></div>
+  <div class="results-container">
+    <div class="game-info">
+      <div class="game-title">Game Results</div>
+      <div class="room-name"></div>
+      <div class="urls">
+        <div class="start-url"></div>
+        <div class="end-url"></div>
       </div>
+      <button class="restart-button" style="display: none;">🔁 Restart Game</button>
+    </div>
 
-      <div class="button-group" style="margin-top: 2rem; display: flex; justify-content: center">
-        <button id="returnHomeButton" class="button">Return to Home</button>
-      </div>
+    <div class="swipe-indicator">
+      <!-- Dots will be dynamically added here -->
+    </div>
+
+    <div class="swipe-container">
+      <!-- Sections will be dynamically added here -->
     </div>
   </div>
 </div>
 
 <style>
-.finished-message {
-  text-align: center;
-  padding: 2rem;
+.container {
+  padding: 0;
+  width: 100vw;
+  margin: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  display: flex;
+  justify-content: center;
 }
 
-.winner-details {
+.results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 2rem 2rem 2rem;
+  height: 100%;
+  overflow-y: auto;
+  width: 100vw;
+  max-width: 1200px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.game-info {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.game-title {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.room-name {
   font-size: 1.2rem;
-  margin-top: 1rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.urls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-family: 'Courier New', monospace;
+  color: #666;
+}
+
+.start-url::before {
+  content: "📍 ";
   color: #333;
 }
 
-.button {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  background-color: #3498db;
-  color: white;
-  border: none;
+.end-url::before {
+  content: "🏁 ";
+  color: #333;
+}
+
+.start-url, .end-url {
+  font-weight: bold;
+  color: #333;
+}
+
+.swipe-container {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  gap: 2rem;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+/* Desktop layout */
+@media (min-width: 768px) {
+  .swipe-container {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .player-section {
+    flex: 0 0 calc(33.333% - 0.75rem);
+    min-width: calc(33.333% - 0.75rem);
+    max-width: calc(33.333% - 0.75rem);
+    height: auto;
+    margin-bottom: 1rem;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .swipe-container::-webkit-scrollbar {
+    display: none;
+  }
+  .swipe-container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Hide dots on desktop */
+  .swipe-indicator {
+    display: none;
+  }
+}
+
+/* Mobile layout */
+@media (max-width: 767px) {
+  .swipe-container {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .swipe-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .player-section {
+    flex: 0 0 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .swipe-indicator {
+    display: flex;
+  }
+}
+
+.player-section {
+  scroll-snap-align: start;
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.winner-section {
+  border: 2px solid #FFD700;
+}
+
+.reached-goal-section {
+  border: 1px solid #C0C0C0;
+}
+
+.other-players-section {
+  border: 1px solid #9E9E9E;
+}
+
+.section-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #333;
+  position: sticky;
+  top: 0;
+  background: white;
+  padding: 0.5rem 0;
+  z-index: 1;
+}
+
+.winner-section .section-title {
+  color: #FFD700;
+}
+
+.reached-goal-section .section-title {
+  color: #C0C0C0;
+}
+
+.other-players-section .section-title {
+  color: #9E9E9E;
+}
+
+.player-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.player-path {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.player-path.current-player {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.winner-section .player-path.current-player {
+  background: rgba(255, 215, 0, 0.15);
+  border: 2px solid #FFD700;
+}
+
+.reached-goal-section .player-path.current-player {
+  background: rgba(192, 192, 192, 0.15);
+  border: 2px solid #C0C0C0;
+}
+
+.other-players-section .player-path.current-player {
+  background: rgba(158, 158, 158, 0.15);
+  border: 2px solid #9E9E9E;
+}
+
+.player-name {
+  font-weight: bold;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.path-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.path-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: transparent;
   border-radius: 4px;
+  border-left: 4px solid #dee2e6;
+}
+
+.path-entry.effect-start {
+  border-left-color: #424242;
+}
+
+.path-entry.effect-end {
+  border-left-color: #FFD700;
+}
+
+.path-entry.effect-bombed {
+  border-left-color: #f44336;
+}
+
+.path-entry.effect-swapped {
+  border-left-color: #ff9800;
+}
+
+.path-entry.effect-returned {
+  border-left-color: #9c27b0;
+}
+
+.path-entry.effect-random {
+  border-left-color: #e91e63;
+}
+
+.path-entry.effect-user_selected {
+  border-left-color: #00bcd4;
+}
+
+.path-entry.effect-surrender {
+  border-left-color: #9e9e9e;
+}
+
+.path-entry.effect-cancelled {
+  border-left-color: #607d8b;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.path-url {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  color: #333;
+}
+
+.effect-emoji {
+  font-size: 1.2rem;
+}
+
+.swipe-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.5rem;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ddd;
+  transition: background-color 0.3s;
   cursor: pointer;
-  transition: background-color 0.2s;
 }
 
-.button:hover {
-  background-color: #2980b9;
+.dot.active {
+  background: #666;
 }
 
-.button:active {
-  background-color: #2472a4;
+/* Remove button styles since we're not using them anymore */
+.button {
+  display: none;
+}
+
+.button-group {
+  display: none;
+}
+
+.restart-button {
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 1rem;
+}
+
+.restart-button:hover {
+  background: #e9ecef;
+  border-color: #ced4da;
+  transform: translateY(-1px);
+}
+
+.restart-button:active {
+  transform: translateY(0);
 }
 </style> 
