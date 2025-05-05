@@ -14,17 +14,23 @@ function addToCache(url, data) {
 }
 
 async function getWikiContent(url) {
-    if (!url || !url.startsWith('https://en.wikipedia.org/')) {
+    // Convert mobile URL to desktop URL if needed
+    let cleanUrl = url;
+    if (url.includes('en.m.wikipedia.org')) {
+        cleanUrl = url.replace('en.m.wikipedia.org', 'en.wikipedia.org');
+    }
+
+    if (!cleanUrl || !cleanUrl.startsWith('https://en.wikipedia.org/')) {
         throw new Error("Invalid Wikipedia URL");
     }
 
     // Check if URL is in cache
-    if (responseCache.has(url)) {
-        return responseCache.get(url);
+    if (responseCache.has(cleanUrl)) {
+        return responseCache.get(cleanUrl);
     }
 
     try {
-        const response = await axios.get(url, {
+        const response = await axios.get(cleanUrl, {
             headers: {
                 'User-Agent': 'WikiRace Game/1.0',
                 'Accept': 'text/html',
@@ -45,7 +51,7 @@ async function getWikiContent(url) {
         }
 
         // Add response to cache
-        addToCache(url, response.data);
+        addToCache(cleanUrl, response.data);
         return response.data;
         
     } catch (error) {

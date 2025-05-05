@@ -191,14 +191,20 @@ apiRouter.get("/wiki-content", async (req, res) => {
   const url = req.query.url;
   console.log('Received wiki-content request for URL:', url);
 
-  if (!url || !url.startsWith("https://en.wikipedia.org/")) {
+  // Convert mobile URL to desktop URL if needed
+  let cleanUrl = url;
+  if (url && url.includes('en.m.wikipedia.org')) {
+    cleanUrl = url.replace('en.m.wikipedia.org', 'en.wikipedia.org');
+  }
+
+  if (!cleanUrl || !cleanUrl.startsWith("https://en.wikipedia.org/")) {
     console.error('Invalid Wikipedia URL:', url);
     return res.status(400).json({ error: "Invalid Wikipedia URL" });
   }
 
   try {
     console.log('Fetching content from Wikipedia...');
-    const content = await getWikiContent(url);
+    const content = await getWikiContent(cleanUrl);
     res.send(content);
   } catch (error) {
     console.error("Error fetching Wikipedia content:", error);

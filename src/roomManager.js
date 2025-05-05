@@ -89,12 +89,23 @@ const maxRooms = parseInt(process.env.MAX_ROOMS) || 10;
 
 // Helper function to validate Wikipedia URLs
 function isValidWikipediaUrl(url) {
-  if (!url || !url.startsWith("https://en.wikipedia.org/wiki/")) {
+  if (!url) {
+    return false;
+  }
+
+  // Convert mobile URL to desktop URL for validation
+  let cleanUrl = url;
+  if (url.includes('en.m.wikipedia.org')) {
+    cleanUrl = url.replace('en.m.wikipedia.org', 'en.wikipedia.org');
+  }
+
+  // Check if it's a valid Wikipedia URL
+  if (!cleanUrl.startsWith("https://en.wikipedia.org/wiki/")) {
     return false;
   }
 
   // Check for non-article content
-  const path = url.toLowerCase();
+  const path = cleanUrl.toLowerCase();
   const invalidPrefixes = [
     '/file:', '/special:', '/help:', '/template:', '/category:', '/portal:', '/wikipedia:',
     '/user:', '/talk:', '/project:', '/module:', '/mediawiki:', '/draft:', '/book:',

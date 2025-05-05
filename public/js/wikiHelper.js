@@ -77,7 +77,13 @@ function normalizeWikiInput(input) {
 function isValidWikiUrl(input) {
     try {
         const url = new URL(input);
+        // Check if it's a Wikipedia URL and has the correct path
         if (!url.hostname.includes('wikipedia.org') || !url.pathname.startsWith('/wiki/')) {
+            return false;
+        }
+
+        // Check if it's English Wikipedia
+        if (url.hostname !== 'en.wikipedia.org' && url.hostname !== 'en.m.wikipedia.org') {
             return false;
         }
 
