@@ -62,6 +62,7 @@ const { broadcastGameState } = require('../../gameStateManager');
 const { GameStates } = require('../gameStates');
 const { handleStateChange } = require('./stateHandlers');
 const { sendMessageWithQueue, broadcastToAll } = require('../../messageQueue');
+const { handleAdditionTimerExpired } = require('./stateHandlers');
 
 const DEBUG = true; // Set to false to disable debug logging
 
@@ -71,6 +72,47 @@ const HANDLED_ACTIONS = [
     'player.readyToContinue',
     'creator.giveAddition'
 ];
+
+// Helper function to check if a player can use any additions
+function canPlayerUseAdditions(room, playerName) {
+    // If player is in readyToContinue, they should not be eligible
+    if (room.readyToContinue && room.readyToContinue.has && room.readyToContinue.has(playerName)) {
+        return false;
+    }
+    const player = room.players.get(playerName);
+    if (!player || !player.additions) return false;
+
+    // Check if player has any additions
+    const hasAdditions = Object.values(player.additions).some(count => count > 0);
+    if (!hasAdditions) return false;
+
+    // Check if any other players can receive additions
+    const hasEligibleTargets = Array.from(room.players.entries()).some(([targetName, targetPlayer]) => {
+        if (targetName === playerName) return false;
+        if (!targetPlayer.path || targetPlayer.path.length === 0) return true;
+
+        // If additions_application is 'once', check if the player's recent links are already affected
+        if (room.config.additions_application === 'once') {
+            const lastLink = targetPlayer.path[targetPlayer.path.length - 1];
+            const secondLastLink = targetPlayer.path.length > 1 ? targetPlayer.path[targetPlayer.path.length - 2] : null;
+            
+            // Check if the last link has an effect from an addition
+            const isLastLinkAffected = lastLink.effect && ['bombed', 'swapped', 'returned', 'cancelled'].includes(lastLink.effect);
+            // Check if the second last link was cancelled
+            const isSecondLastLinkCancelled = secondLastLink && secondLastLink.effect === 'cancelled';
+            
+            if (isLastLinkAffected || isSecondLastLinkCancelled) {
+                return false;
+            }
+        }
+
+        // For all cases, check if the last link has an effect
+        const lastEntry = targetPlayer.path[targetPlayer.path.length - 1];
+        return !lastEntry.effect || !['swap', 'bomb', 'return'].includes(lastEntry.effect);
+    });
+
+    return hasEligibleTargets;
+}
 
 function handleUseAdditionResponse(room, data) {
     if (DEBUG) console.log(`[additionHandlers] Received useAdditionResponse from ${data.playerName} for ${data.selection.type} on ${data.selection.target}`);
@@ -99,6 +141,46 @@ function handleUseAdditionResponse(room, data) {
         const currentPlayer = room.additionOrder[room.currentPlayerIndex];
         if (playerName !== currentPlayer) {
             console.warn(`[additionHandlers] Player ${playerName} is not the current player in round-robin mode`);
+            return;
+        }
+
+        // Check if player can use any additions
+        if (!canPlayerUseAdditions(room, playerName)) {
+            if (DEBUG) console.log(`[additionHandlers] Player ${playerName} cannot use any additions, passing turn`);
+            // Clear existing timer before starting a new one
+            if (room.additionTimer) {
+                clearTimeout(room.additionTimer);
+                room.additionTimer = null;
+            }
+            // Pass turn to next eligible player
+            let foundEligible = false;
+            let attempts = 0;
+            while (attempts < room.additionOrder.length) {
+                room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.additionOrder.length;
+                const nextPlayer = room.additionOrder[room.currentPlayerIndex];
+                if (canPlayerUseAdditions(room, nextPlayer)) {
+                    foundEligible = true;
+                    break;
+                }
+                attempts++;
+            }
+            if (!foundEligible) {
+                // No eligible players left, move to running state
+                if (DEBUG) console.log(`[additionHandlers] No eligible players left in round_robin, moving to RUNNING state`);
+                handleStateChange(room, GameStates.RUNNING, data);
+            } else {
+                // Reset timer for next player
+                room.additionEndTime = Date.now() + (room.config.additions_timer * 1000);
+                // Start new timer
+                room.additionTimer = setTimeout(() => {
+                    handleAdditionTimerExpired(room, data);
+                }, room.config.additions_timer * 1000);
+                // Update eligible players to only include current player
+                room.eligiblePlayers = [room.additionOrder[room.currentPlayerIndex]];
+                if (DEBUG) console.log(`[additionHandlers] Moving to next player: ${room.eligiblePlayers[0]}`);
+                // Broadcast the updated state
+                broadcastGameState(room);
+            }
             return;
         }
     } else {
@@ -177,28 +259,35 @@ function handleUseAdditionResponse(room, data) {
             break;
     }
 
-    // Increase target player's received additions counter
-    const currentCount = room.receivedAdditions.get(selection.target) || 0;
-    room.receivedAdditions.set(selection.target, currentCount + 1);
-
     // Decrease the sending player's addition count
     player.additions[selection.type]--;
+
+    // --- FREE_FOR_ALL: Remove player if no additions left or no targets, and transition if needed ---
+    if (room.config.additions_callType === 'free_for_all') {
+        const stillHasAdditions = Object.values(player.additions).some(count => count > 0);
+        const hasTargets = canPlayerUseAdditions(room, playerName);
+        if (!stillHasAdditions || !hasTargets || !room.config.additions_multiplePerRound) {
+            room.eligiblePlayers = room.eligiblePlayers.filter(name => name !== playerName);
+        }
+        // If no eligible players left, move to running state and return
+        if (room.eligiblePlayers.length === 0) {
+            if (DEBUG) console.log(`[additionHandlers] No eligible players left in free_for_all, moving to RUNNING state`);
+            handleStateChange(room, GameStates.RUNNING, data);
+            return;
+        }
+    }
 
     // Mark player as having used an addition if multiplePerRound is false
     if (!room.config.additions_multiplePerRound) {
         player.usedAddition = true;
-        // Remove player from eligible players if in free_for_all mode
+        // Remove player from eligible players if in free_for_all mode (already handled above)
         if (room.config.additions_callType === 'free_for_all') {
-            room.eligiblePlayers = room.eligiblePlayers.filter(name => name !== playerName);
-            
             // Initialize readyToContinue set if it doesn't exist
             if (!room.readyToContinue) {
                 room.readyToContinue = new Set();
             }
-            
             // Add player to ready set
             room.readyToContinue.add(playerName);
-            
             // If all players are ready, continue to running state
             if (room.readyToContinue.size === room.players.size) {
                 room.readyToContinue = null;
@@ -231,11 +320,22 @@ function handleUseAdditionResponse(room, data) {
             room.additionTimer = null;
         }
 
-        room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.additionOrder.length;
-        if (room.currentPlayerIndex === 0) {
-            // We've gone through all players, move to running state
-            if (DEBUG) console.log(`[additionHandlers] All players have used additions, moving to RUNNING state`);
-            handleStateChange(room, GameStates.RUNNING, data, true);
+        // Pass turn to next eligible player
+        let foundEligible = false;
+        let attempts = 0;
+        while (attempts < room.additionOrder.length) {
+            room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.additionOrder.length;
+            const nextPlayer = room.additionOrder[room.currentPlayerIndex];
+            if (canPlayerUseAdditions(room, nextPlayer)) {
+                foundEligible = true;
+                break;
+            }
+            attempts++;
+        }
+        if (!foundEligible) {
+            // No eligible players left, move to running state
+            if (DEBUG) console.log(`[additionHandlers] No eligible players left in round_robin, moving to RUNNING state`);
+            handleStateChange(room, GameStates.RUNNING, data);
         } else {
             // Reset timer for next player
             room.additionEndTime = Date.now() + (room.config.additions_timer * 1000);
@@ -275,6 +375,21 @@ function handleReadyToContinue(room, data) {
     room.readyToContinue.add(playerName);
 
     if (room.config.additions_callType === 'free_for_all') {
+        // Check if this player was the last eligible player
+        const wasLastEligible = room.eligiblePlayers && room.eligiblePlayers.length === 1 && room.eligiblePlayers[0] === playerName;
+        
+        // If this was the last eligible player, clear the timer and move to RUNNING state
+        if (wasLastEligible) {
+            if (room.additionTimer) {
+                clearTimeout(room.additionTimer);
+                room.additionTimer = null;
+            }
+            room.readyToContinue = null;
+            if (DEBUG) console.log(`[additionHandlers] Last eligible player is ready, moving to RUNNING state`);
+            handleStateChange(room, GameStates.RUNNING, data);
+            return;
+        }
+
         // In free_for_all mode, check if all players are ready
         if (room.readyToContinue.size === room.players.size) {
             room.readyToContinue = null;

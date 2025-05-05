@@ -3,6 +3,7 @@ import { urlToTitle } from "/js/wikiHelper.js";
 import popupManager from "/js/popup.js";
 import { filterWikiUrls } from "/js/wikiUrlFilter.js";
 import { getCurrentPlayerUrl } from '/js/gameStateManager.js';
+import { isValidWikiUrl } from "/js/wikiHelper.js";
 
 // Make websocketManager available globally
 window.websocketManager = websocketManager;
@@ -142,15 +143,18 @@ function processWikiContent(content) {
 
     // Process all links
     const links = container.querySelectorAll('a');
+    // Filter to valid Wikipedia links (href starts with /wiki/ and passes isValidWikiUrl)
     const validLinks = Array.from(links).filter(link => {
         const href = link.getAttribute('href');
-        return href && href.startsWith('/wiki/');
+        if (!href || !href.startsWith('/wiki/')) return false;
+        const fullUrl = `https://en.wikipedia.org${href}`;
+        return isValidWikiUrl(fullUrl);
     });
 
-    // If bombed, randomly select half of the links to be affected
+    // If bombed, randomly select 35% of the valid links to be affected
     let affectedLinks = [];
     if (isBombed && validLinks.length > 0) {
-        const numToAffect = Math.ceil(validLinks.length / 2);
+        const numToAffect = Math.ceil(validLinks.length * 0.35);
         const shuffled = [...validLinks].sort(() => Math.random() - 0.5);
         affectedLinks = shuffled.slice(0, numToAffect);
     }
@@ -165,10 +169,18 @@ function processWikiContent(content) {
         // Handle Wikipedia links
         if (href.startsWith('/wiki/')) {
             const fullUrl = `https://en.wikipedia.org${href}`;
-            
-            // Check if this link should be affected by bomb
+
+            // Only allow clickable if valid wiki url and not already selected and not bombed
+            const isValid = isValidWikiUrl(fullUrl);
             const isAffected = affectedLinks.includes(link);
-            
+
+            if (!isValid) {
+                // Replace invalid wiki links with just text
+                const text = link.textContent;
+                link.replaceWith(text);
+                return;
+            }
+
             if (isAffected) {
                 // Make link bold, red, and non-clickable
                 link.style.fontWeight = 'bold';
@@ -178,7 +190,7 @@ function processWikiContent(content) {
             } else if (!selectedUrls.has(fullUrl)) {
                 // Add to available URLs if not already selected and not affected
                 availableUrls.add(fullUrl);
-                
+
                 // Optimize click handling for mobile
                 if (isMobile) {
                     link.setAttribute('onclick', `event.preventDefault(); event.stopPropagation(); window.websocketManager.sendSelectLink('${fullUrl}');`);

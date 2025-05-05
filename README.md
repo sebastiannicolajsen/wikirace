@@ -58,3 +58,10 @@ npm start
 - Ensure `BASE_URL` is set to your actual domain for proper QR code generation
 - Consider using a process manager like PM2 for production deployments
 - Set up proper SSL/TLS certificates if using HTTPS
+
+## Configuration
+
+The following environment variables can be set to configure the application:
+
+- `PORT`: The port number the server will listen on (default: 3000)
+- `WEBSOCKET_PING_INTERVAL`: Interval in milliseconds for WebSocket ping messages to check connection health (default: 10000)

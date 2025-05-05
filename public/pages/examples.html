@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiRace Examples</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .examples-section {
+            margin-bottom: 2.5rem;
+        }
+        .examples-section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.2rem;
+        }
+        .example-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            padding: 0.7rem 1rem;
+            transition: box-shadow var(--transition-speed) ease, max-height 0.2s;
+            cursor: pointer;
+            overflow: visible;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+        }
+        .example-card.expanded {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            z-index: 2;
+        }
+        .example-card .example-card-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.98);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            border-radius: var(--border-radius);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 1.2rem 1.5rem 1.5rem 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s;
+            overflow: visible;
+            max-height: none;
+            text-align: center;
+        }
+        .example-card.expanded .example-card-overlay {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .example-card.expanded .example-title,
+        .example-card.expanded .example-tags {
+            opacity: 0.3;
+            filter: blur(1px);
+            transition: opacity 0.18s, filter 0.18s;
+        }
+        .example-card .example-description,
+        .example-card .example-actions {
+            display: none;
+        }
+        .example-card.expanded .example-description,
+        .example-card.expanded .example-actions {
+            display: block;
+        }
+        .example-card .example-description {
+            color: var(--secondary-color);
+            font-size: 0.95rem;
+            margin: 0 0 0.25rem 0;
+            word-break: break-word;
+        }
+        .example-card .example-actions {
+            margin-top: 0.05rem;
+        }
+        .example-emoji {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+            display: inline-block;
+        }
+        .example-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-color);
+        }
+        .example-content {
+            width: 100%;
+        }
+        .example-tags {
+            margin-bottom: 0.5rem;
+            display: block;
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.3rem;
+            overflow-x: auto;
+            width: 100%;
+        }
+        .example-tag {
+            display: inline-block;
+            background: var(--accent-color);
+            color: var(--secondary-color);
+            border-radius: 12px;
+            padding: 0.2rem 0.7rem;
+            font-size: 0.8rem;
+            margin-right: 0.4rem;
+            margin-bottom: 0.2rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .example-actions {
+            margin-top: 0.5rem;
+        }
+        .open-example-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 0.4rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background var(--transition-speed) ease;
+        }
+        .open-example-btn:hover {
+            background: var(--link-hover-color);
+        }
+        #tagBar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 0.3rem;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <main class="page-content">
+            <div class="container">
+                <div id="animatedTitle"></div>
+                <div id="tagBar" style="margin-bottom: 1.5rem;"></div>
+                <div id="examplesRoot"></div>
+            </div>
+        </main>
+    </div>
+    <script type="module">
+        import { initAnimatedTitle, getAnimatedTitleHTML } from '/js/animatedTitle.js';
+        document.getElementById('animatedTitle').innerHTML = getAnimatedTitleHTML('WikiRace', 'examples');
+        initAnimatedTitle();
+
+        let activeTagFilter = null;
+        let allExamples = [];
+
+        async function fetchExamples() {
+            const res = await fetch('/js/examples.json');
+            return await res.json();
+        }
+
+        // Tag emoji and color maps
+        const tagEmojiMap = {
+            classic: '🏁',
+            speed: '⚡',
+            strategy: '♟️',
+            'effect cards': '🎴',
+            chaos: '🌪️',
+            challenge: '🔥',
+            person: '👤',
+            blitz: '🚀'
+        };
+        const tagColorMap = {
+            classic: '#e0e7ff',
+            speed: '#ffe066',
+            strategy: '#f5e6cc',
+            'effect cards': '#ffe4e1',
+            chaos: '#e0f7fa',
+            challenge: '#ffd700',
+            person: '#ffe5b4',
+            blitz: '#b2f2ff'
+        };
+
+        function renderTagBar(examples) {
+            const tagBar = document.getElementById('tagBar');
+            tagBar.innerHTML = '';
+            // Show all tags from tagEmojiMap/tagColorMap
+            const tags = Object.keys(tagEmojiMap);
+            tags.forEach(tag => {
+                const tagBtn = document.createElement('button');
+                tagBtn.className = 'example-tag';
+                tagBtn.textContent = `${tagEmojiMap[tag] || '🏷️'} ${tag}`;
+                tagBtn.style.background = tagColorMap[tag] || 'var(--accent-color)';
+                tagBtn.style.color = '#222';
+                tagBtn.style.opacity = '0.85';
+                tagBtn.style.filter = 'grayscale(0.1)';
+                tagBtn.style.cursor = 'pointer';
+                tagBtn.style.border = activeTagFilter === tag ? '2px solid #222' : '1px solid transparent';
+                tagBtn.style.boxShadow = activeTagFilter === tag ? '0 0 0 2px #2222' : 'none';
+                tagBtn.style.fontWeight = '500';
+                tagBtn.style.transition = 'border 0.15s, box-shadow 0.15s';
+                tagBtn.addEventListener('click', () => {
+                    if (activeTagFilter === tag) {
+                        activeTagFilter = null;
+                    } else {
+                        activeTagFilter = tag;
+                    }
+                    renderExamples(allExamples);
+                    renderTagBar(allExamples);
+                });
+                tagBar.appendChild(tagBtn);
+            });
+        }
+
+        function createExampleCard(example, expandedId, onExpand) {
+            const card = document.createElement('div');
+            card.className = 'example-card';
+            card.tabIndex = 0;
+            const isExpanded = expandedId === example.name;
+            if (isExpanded) card.classList.add('expanded');
+
+            // Title row (always visible)
+            const titleRow = document.createElement('div');
+            titleRow.style.display = 'flex';
+            titleRow.style.alignItems = 'center';
+            titleRow.style.width = '100%';
+            const emoji = document.createElement('span');
+            emoji.className = 'example-emoji';
+            emoji.textContent = example.emoji;
+            titleRow.appendChild(emoji);
+            const title = document.createElement('span');
+            title.className = 'example-title';
+            title.textContent = example.name;
+            titleRow.appendChild(title);
+            card.appendChild(titleRow);
+
+            // Tags (always visible, with emoji and color)
+            const tagsDiv = document.createElement('div');
+            tagsDiv.className = 'example-tags';
+            (example.tags.slice(0, 3)).forEach(tag => {
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'example-tag';
+                tagSpan.textContent = `${tagEmojiMap[tag] || '🏷️'} ${tag}`;
+                tagSpan.style.background = tagColorMap[tag] || 'var(--accent-color)';
+                tagSpan.style.color = '#222';
+                tagSpan.style.opacity = '0.65';
+                tagSpan.style.filter = 'grayscale(0.2)';
+                tagsDiv.appendChild(tagSpan);
+            });
+            card.appendChild(tagsDiv);
+
+            // Overlay for expanded state
+            if (isExpanded) {
+                const overlay = document.createElement('div');
+                overlay.className = 'example-card-overlay';
+                // Description
+                const desc = document.createElement('div');
+                desc.className = 'example-description';
+                desc.textContent = example.description;
+                overlay.appendChild(desc);
+                
+                // Open button in the overlay
+                const openBtn = document.createElement('button');
+                openBtn.className = 'open-example-btn';
+                openBtn.innerHTML = '<i class="fas fa-arrow-up-right-from-square"></i> Open';
+                openBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const params = new URLSearchParams(example.parameters);
+                    params.set('EX', example.name);
+                    window.location.href = `/create?${params.toString()}`;
+                });
+                overlay.appendChild(openBtn);
+                
+                card.appendChild(overlay);
+            }
+
+            card.addEventListener('click', () => onExpand(example.name));
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onExpand(example.name);
+                }
+            });
+
+            return card;
+        }
+
+        function renderExamples(examples) {
+            const root = document.getElementById('examplesRoot');
+            root.innerHTML = '';
+            const categories = [
+                { key: 'Regular', label: 'Regular' },
+                { key: 'Spicy', label: 'Spicy' },
+                { key: 'Player Based', label: 'Find a person' }
+            ];
+            let expandedId = null;
+            function onExpand(name) {
+                expandedId = expandedId === name ? null : name;
+                render();
+            }
+            function render() {
+                root.innerHTML = '';
+                categories.forEach(cat => {
+                    const section = document.createElement('div');
+                    section.className = 'examples-section';
+                    const sectionTitle = document.createElement('div');
+                    sectionTitle.className = 'examples-section-title';
+                    sectionTitle.textContent = cat.label;
+                    section.appendChild(sectionTitle);
+                    const grid = document.createElement('div');
+                    grid.className = 'examples-grid';
+                    let filtered = examples.filter(e => (e.category || 'Regular') === cat.key);
+                    if (activeTagFilter) {
+                        filtered = filtered.filter(e => (e.tags || []).includes(activeTagFilter));
+                    }
+                    filtered.forEach(example => {
+                        grid.appendChild(createExampleCard(example, expandedId, onExpand));
+                    });
+                    section.appendChild(grid);
+                    root.appendChild(section);
+                });
+            }
+            render();
+        }
+
+        fetchExamples().then(examples => {
+            allExamples = examples;
+            renderTagBar(allExamples);
+            renderExamples(allExamples);
+        });
+    </script>
+</body>
+</html> 

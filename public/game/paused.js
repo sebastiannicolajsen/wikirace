@@ -40,10 +40,9 @@ function setupPausedPage(state, subpageElement, timerContainerElement) {
             const effect = lastPathEntry?.effect;
             
             currentPlayerSection.innerHTML = `
-                <h4>Your Next Link</h4>
                 <div class="current-player-url ${effect ? `effect-${effect}` : ''}">
                     <span class="next-url">
-                        📍 ${nextUrlTitle}
+                        ⏭️ ${nextUrlTitle}
                     </span>
                     ${effect === "random" ? `
                         <span class="url-effect">Randomly selected</span>
@@ -68,6 +67,10 @@ function setupPausedPage(state, subpageElement, timerContainerElement) {
             .filter(p => p.name !== websocketManager.playerName)
             .sort((a, b) => a.name.localeCompare(b.name));
 
+        // --- NEW: Wrap other players in a card section ---
+        const otherPlayersSection = document.createElement("div");
+        otherPlayersSection.className = "other-players-section";
+
         otherPlayers.forEach((player) => {
             const statusItem = document.createElement("div");
             statusItem.className = "player-status-item";
@@ -84,19 +87,29 @@ function setupPausedPage(state, subpageElement, timerContainerElement) {
             const lastPathEntry = player.path[player.path.length - 1];
             const wasChosenByOther = lastPathEntry?.chosenBy;
             const effect = lastPathEntry?.effect;
-            
-            // Set background color based on continuation status
+
+            // --- NEW: Status icon logic ---
+            let statusIconHTML = "";
+            let isDone = false;
             if (state.config.continuation === "democratic") {
-                statusItem.style.backgroundColor = state.continueResponses.includes(player.name) ? "#e6ffe6" : "#fffde7";
+                if (state.continueResponses.includes(player.name)) {
+                    statusIconHTML = '<span class="status-icon"><span class="status-check"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10" fill="#43a047"/><path d="M6 10.5L9 13.5L14 7.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
+                    isDone = true;
+                } else {
+                    statusIconHTML = '<span class="status-icon"><span class="status-spinner"></span></span>';
+                    statusItem.classList.add('player-waiting');
+                }
             }
+            if (isDone) statusItem.classList.add('player-done');
             
             statusItem.innerHTML = `
                 <div class="player-info">
                     <span class="player-name">${player.name}</span>
+                    ${statusIconHTML}
                 </div>
                 <div class="player-path">
                     <span class="next-url ${wasChosenByOther ? 'chosen-by-other' : ''} ${effect ? `effect-${effect}` : ''}">
-                        📍 ${nextUrlTitle}
+                        ⏭️ ${nextUrlTitle}
                     </span>
                     ${effect === "random" ? `
                         <span class="chosen-by-text">Randomly selected</span>
@@ -109,17 +122,24 @@ function setupPausedPage(state, subpageElement, timerContainerElement) {
                     `}
                 </div>
             `;
-            playerStatusList.appendChild(statusItem);
+            otherPlayersSection.appendChild(statusItem);
         });
+        playerStatusList.appendChild(otherPlayersSection);
     }
 
     // Update waiting message based on continuation mode
     const waitingMessage = subpageElement.querySelector("#waitingMessage");
     if (waitingMessage) {
         if (state.config.continuation === "creator") {
-            waitingMessage.textContent = "Waiting for owner to continue...";
+            if (websocketManager.playerName === state.creator) {
+                waitingMessage.textContent = "Waiting on you";
+            } else {
+                waitingMessage.textContent = "Waiting for owner to continue...";
+            }
+            waitingMessage.classList.add("waiting-for-creator");
         } else {
             waitingMessage.textContent = "Waiting for players to continue...";
+            waitingMessage.classList.remove("waiting-for-creator");
         }
     }
 

@@ -22,10 +22,20 @@ class CreateRoomManager {
     async initialize() {
         this.initializePlaceholders();
         this.setupEventListeners();
-        await this.loadInitialLinks();
+        await this.parseUrlParameters();
+        // If S or E are missing, initialize only the missing one(s)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasStart = urlParams.has('S');
+        const hasEnd = urlParams.has('E');
+        if (!hasStart && !hasEnd) {
+            await this.loadInitialLinks();
+        } else if (!hasStart) {
+            await this.loadRandomUrl('start');
+        } else if (!hasEnd) {
+            await this.loadRandomUrl('end');
+        }
         await this.loadDescriptions();
         this.initializeInfoPopups();
-        this.parseUrlParameters();
     }
 
     initializePlaceholders() {
@@ -54,8 +64,26 @@ class CreateRoomManager {
         });
         
         // Handle input changes
-        this.startUrlInput.addEventListener('input', (e) => this.handleInputChange(e, 'start'));
-        this.endUrlInput.addEventListener('input', (e) => this.handleInputChange(e, 'end'));
+        this.startUrlInput.addEventListener('input', (e) => {
+            // Just store the raw input value
+            const value = e.target.value;
+            e.target.dataset.rawValue = value;
+        });
+        this.endUrlInput.addEventListener('input', (e) => {
+            // Just store the raw input value
+            const value = e.target.value;
+            e.target.dataset.rawValue = value;
+        });
+
+        // Add blur event listeners for validation
+        this.startUrlInput.addEventListener('blur', (e) => {
+            const value = e.target.dataset.rawValue || e.target.value;
+            this.handleInputChange({ target: { value } }, 'start');
+        });
+        this.endUrlInput.addEventListener('blur', (e) => {
+            const value = e.target.dataset.rawValue || e.target.value;
+            this.handleInputChange({ target: { value } }, 'end');
+        });
 
         // Handle sliders
         this.setupSlider('countdownTime', 5, 35, 30);
@@ -294,10 +322,9 @@ class CreateRoomManager {
         }
     }
 
-    async loadRandomUrl(type) {
+    async loadRandomUrl(type, showPopup = false) {
         const input = type === 'start' ? this.startUrlInput : this.endUrlInput;
         const history = type === 'start' ? this.startUrlHistory : this.endUrlHistory;
-        
         try {
             const response = await fetch('/api/random-url');
             if (!response.ok) {
@@ -307,27 +334,20 @@ class CreateRoomManager {
             if (!data.url || !data.id) {
                 throw new Error('Invalid response from server');
             }
-            
-            // Add the new URL to history
             history.push(data.url);
             const newIndex = history.length - 1;
-            
-            // Update the input with the new URL
             input.value = data.title || urlToTitle(data.url);
             input.dataset.url = data.url;
             input.dataset.urlId = data.id;
-            
             if (type === 'start') {
                 this.currentStartIndex = newIndex;
             } else {
                 this.currentEndIndex = newIndex;
             }
-            
-            // Update button states
             this.updateButtonStates(type);
-            
-            // Show a brief message to the user
-            popupManager.showInfo('Invalid URL replaced with a random Wikipedia article.', 'info', 2000);
+            if (showPopup) {
+                popupManager.showInfo('Invalid URL replaced with a random Wikipedia article.', 'info', 2000);
+            }
         } catch (error) {
             popupManager.showInfo('Failed to load random URL. Please try again.');
         }
@@ -733,7 +753,7 @@ class CreateRoomManager {
         });
     }
 
-    parseUrlParameters() {
+    async parseUrlParameters() {
         const urlParams = new URLSearchParams(window.location.search);
         
         // Parse room name (R)
@@ -747,28 +767,78 @@ class CreateRoomManager {
         if (playerName) {
             this.playerNameInput.value = playerName;
         }
-        
-        // Parse start URL (S)
-        const startUrl = urlParams.get('S');
-        if (startUrl && isValidWikiUrl(startUrl)) {
-            this.startUrlInput.value = urlToTitle(startUrl);
-            this.startUrlInput.dataset.url = startUrl;
-            this.startUrlHistory = [startUrl];
-            this.currentStartIndex = 0;
-            this.updateButtonStates('start');
-        }
-        
-        // Parse end URL (E)
-        const endUrl = urlParams.get('E');
-        if (endUrl && isValidWikiUrl(endUrl)) {
-            this.endUrlInput.value = urlToTitle(endUrl);
-            this.endUrlInput.dataset.url = endUrl;
-            this.endUrlHistory = [endUrl];
-            this.currentEndIndex = 0;
-            this.updateButtonStates('end');
-        }
 
-        // Parse settings string (Q)
+        // Helper to load either a Wikipedia URL or an ID
+        const loadUrl = async (param, type) => {
+            const value = urlParams.get(param);
+            let success = false;
+            let triedUrl = false;
+            let triedId = false;
+            if (value) {
+                if (isValidWikiUrl(value)) {
+                    // It's a full Wikipedia URL
+                    triedUrl = true;
+                    try {
+                        const response = await fetch('/api/url', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: value })
+                        });
+                        if (!response.ok) throw new Error('Failed to store URL');
+                        const data = await response.json();
+                        const input = type === 'start' ? this.startUrlInput : this.endUrlInput;
+                        input.value = urlToTitle(value);
+                        input.dataset.url = value;
+                        input.dataset.urlId = data.id;
+                        if (type === 'start') {
+                            this.startUrlHistory = [value];
+                            this.currentStartIndex = 0;
+                        } else {
+                            this.endUrlHistory = [value];
+                            this.currentEndIndex = 0;
+                        }
+                        success = true;
+                    } catch (error) {
+                        // Try as ID next
+                    }
+                }
+                if (!success) {
+                    // Try to treat as ID and fetch from /api/url/{id}
+                    triedId = true;
+                    try {
+                        const response = await fetch(`/api/url/${value}`);
+                        if (!response.ok) throw new Error('Failed to fetch URL by ID');
+                        const data = await response.json();
+                        if (!data.url) throw new Error('Invalid URL response');
+                        const input = type === 'start' ? this.startUrlInput : this.endUrlInput;
+                        input.value = data.title || urlToTitle(data.url);
+                        input.dataset.url = data.url;
+                        input.dataset.urlId = value;
+                        if (type === 'start') {
+                            this.startUrlHistory = [data.url];
+                            this.currentStartIndex = 0;
+                        } else {
+                            this.endUrlHistory = [data.url];
+                            this.currentEndIndex = 0;
+                        }
+                        success = true;
+                    } catch (error) {
+                        // Both attempts failed
+                    }
+                }
+            }
+        };
+
+        // Always try to load S and E if present, but do not load random if missing
+        await Promise.all([
+            loadUrl('S', 'start'),
+            loadUrl('E', 'end')
+        ]);
+        // Update button states
+        this.updateButtonStates('start');
+        this.updateButtonStates('end');
+
+        // Always parse Q if present
         const settingsString = urlParams.get('Q');
         if (settingsString) {
             this.parseSettingsString(settingsString);

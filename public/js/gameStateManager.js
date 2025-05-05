@@ -164,26 +164,6 @@ async function resetStateForRunning() {
     console.log('State reset complete');
 }
 
-// Handle state updates
-function handleStateUpdate(state) {
-    // If we receive an older version of the state, ignore it
-    if (state.version && state.version < lastReceivedStateVersion) {
-        console.log(`Ignoring outdated state version ${state.version} (current: ${lastReceivedStateVersion})`);
-        return;
-    }
-
-    // Update the last received version
-    if (state.version) {
-        lastReceivedStateVersion = state.version;
-    }
-
-    // Mark state as initialized
-    isStateInitialized = true;
-
-    // Process the state update
-    // ... existing code ...
-}
-
 export async function loadGameState(state, gameContentContainer) { 
     // Check state version first
     if (state.version && state.version < lastReceivedStateVersion) {
@@ -199,7 +179,7 @@ export async function loadGameState(state, gameContentContainer) {
     // Handle lobby state transition
     if (state.state === 'lobby') {
         console.log('Received lobby state, redirecting to room');
-        window.location.href = `/room/${state.roomName}`;
+        window.location.href = `/room/${state.id}`;
         return;
     }
 
@@ -255,6 +235,13 @@ export async function loadGameState(state, gameContentContainer) {
     if (shouldShowLoading) {
         console.log(`Showing loading state: type changed=${currentSubpageType !== newSubpageType}, not running/waiting=${!isRunningOrWaiting}, url changed=${urlChanged}`);
         subpageElement.innerHTML = '<div class="loading">Loading...</div>';
+        // Reset scroll position only when loading a different subpage type
+        if (currentSubpageType !== newSubpageType) {
+            window.scrollTo(0, 0);
+            if (gameContentContainer) {
+                gameContentContainer.scrollTop = 0;
+            }
+        }
     } else {
         console.log(`Skipping loading state: type unchanged (${newSubpageType}) and URL unchanged`);
     }

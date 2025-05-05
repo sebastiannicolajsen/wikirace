@@ -7,6 +7,13 @@ const { GameStates } = require('./gameFlow/gameStates');
 // Debug flag for connection logging
 const DEBUG_CONNECTIONS = false;
 
+// Get ping interval from environment variable or use default (10 seconds)
+const PING_INTERVAL = process.env.WEBSOCKET_PING_INTERVAL ? parseInt(process.env.WEBSOCKET_PING_INTERVAL) : 10000;
+
+// Map to store ping timeouts for each WebSocket
+const pingTimeouts = new Map();
+const pongTimeouts = new Map();
+
 /**
  * Connection Handler Module
  * 
@@ -28,6 +35,50 @@ const DEBUG_CONNECTIONS = false;
  * - Room cleanup
  * - Game state broadcasting
  */
+
+// Function to start ping interval for a WebSocket
+function startPingInterval(ws, roomId) {
+    // Clear any existing ping timeout
+    if (pingTimeouts.has(ws)) {
+        clearTimeout(pingTimeouts.get(ws));
+    }
+
+    // Set up new ping timeout
+    const timeoutId = setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            try {
+                ws.send(JSON.stringify({ type: 'ping' }));
+                // Set up pong timeout
+                const pongTimeoutId = setTimeout(() => {
+                    console.error('Pong not received within 2 seconds');
+                    handleWebSocketClose(roomId, ws, false);
+                }, 2000);
+                pongTimeouts.set(ws, pongTimeoutId);
+                // Set up next ping
+                startPingInterval(ws, roomId);
+            } catch (error) {
+                console.error('Error sending ping:', error);
+                handleWebSocketClose(roomId, ws, false);
+            }
+        } else {
+            pingTimeouts.delete(ws);
+        }
+    }, PING_INTERVAL);
+
+    pingTimeouts.set(ws, timeoutId);
+}
+
+// Function to stop ping interval for a WebSocket
+function stopPingInterval(ws) {
+    if (pingTimeouts.has(ws)) {
+        clearTimeout(pingTimeouts.get(ws));
+        pingTimeouts.delete(ws);
+    }
+    if (pongTimeouts.has(ws)) {
+        clearTimeout(pongTimeouts.get(ws));
+        pongTimeouts.delete(ws);
+    }
+}
 
 // Function to handle initial connection and validation
 function handleInitialConnection(ws, roomId, data) {
@@ -102,10 +153,28 @@ function handleConnection(ws, roomId, data) {
         return false;
     }
 
+    // Handle pong message
+    if (data.type === 'pong') {
+        // Clear pong timeout
+        if (pongTimeouts.has(ws)) {
+            clearTimeout(pongTimeouts.get(ws));
+            pongTimeouts.delete(ws);
+        }
+        // Reset ping interval on pong
+        startPingInterval(ws, roomId);
+        return true;  // Return true to indicate successful handling
+    }
+
     // Handle leave message
     if (data.type === 'leave') {
         handleWebSocketClose(roomId, ws, true);
         return null;
+    }
+
+    // Handle join message
+    if (data.type === 'join') {
+        // Start ping interval for new connection
+        startPingInterval(ws, roomId);
     }
 
     // Get connection result
@@ -265,6 +334,9 @@ function handlePlayerLeave(room, playerName, playerType) {
 
 // Function to handle WebSocket close
 function handleWebSocketClose(roomId, ws, intentional = false) {
+    // Stop ping interval
+    stopPingInterval(ws);
+
     // check if room exists
     const room = getRoom(roomId);
     if (!room) {

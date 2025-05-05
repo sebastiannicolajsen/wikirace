@@ -193,7 +193,7 @@ function setupFinishedPage(state, subpageElement) {
     const endUrl = subpageElement.querySelector('.end-url');
     const restartButton = subpageElement.querySelector('.restart-button');
     
-    if (roomName) roomName.textContent = state.roomName || 'Game Results';
+    if (roomName) roomName.textContent = state.name || 'Game Results';
     if (startUrl) startUrl.textContent = urlToTitle(state.startUrl);
     if (endUrl) endUrl.textContent = urlToTitle(state.endUrl);
     
@@ -209,8 +209,7 @@ function setupFinishedPage(state, subpageElement) {
             restartButton.addEventListener('click', () => {
                 console.log('Restart button clicked');
                 websocketManager.sendMessage({
-                    type: 'creator.restartGame',
-                    roomName: state.roomName
+                    type: 'creator.restartGame'
                 });
             });
         } else {
@@ -255,9 +254,7 @@ function setupFinishedPage(state, subpageElement) {
         const playerCard = createPlayerPath(winner, isCurrentPlayer);
         section.querySelector('.player-paths').appendChild(playerCard);
         swipeContainer.appendChild(section);
-        if (window.innerWidth < 768) {
-            dotsContainer.appendChild(createDot(true));
-        }
+        dotsContainer.appendChild(createDot(true));
     }
     
     if (reachedGoal.length > 0) {
@@ -273,9 +270,7 @@ function setupFinishedPage(state, subpageElement) {
             const playerCard = createPlayerPath(player, isCurrentPlayer);
             section.querySelector('.player-paths').appendChild(playerCard);
             swipeContainer.appendChild(section);
-            if (window.innerWidth < 768) {
-                dotsContainer.appendChild(createDot(false));
-            }
+            dotsContainer.appendChild(createDot(false));
         });
     }
     
@@ -292,14 +287,23 @@ function setupFinishedPage(state, subpageElement) {
             const playerCard = createPlayerPath(player, isCurrentPlayer);
             section.querySelector('.player-paths').appendChild(playerCard);
             swipeContainer.appendChild(section);
-            if (window.innerWidth < 768) {
-                dotsContainer.appendChild(createDot(false));
-            }
+            dotsContainer.appendChild(createDot(false));
         });
     }
     
     // Setup swipe functionality
     setupSwipeFunctionality(subpageElement);
+
+    // Show dots on desktop only if horizontal scroll is possible
+    if (window.innerWidth >= 768) {
+        if (swipeContainer && dotsContainer) {
+            if (swipeContainer.scrollWidth > swipeContainer.clientWidth) {
+                dotsContainer.style.display = 'flex';
+            } else {
+                dotsContainer.style.display = 'none';
+            }
+        }
+    }
 }
 
 // Helper function to create a dot

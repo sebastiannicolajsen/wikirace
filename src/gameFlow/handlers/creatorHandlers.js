@@ -46,8 +46,6 @@ function handleStartGame(room, data) {
 
     // Start the game
     stateChangeManager.changeState(room, GameStates.RUNNING, {
-        startUrl,
-        endUrl,
         currentUrl: startUrl
     });
 }

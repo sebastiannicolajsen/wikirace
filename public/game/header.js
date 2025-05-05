@@ -71,7 +71,20 @@ export function updateHeader(state) {
       // Compare with getCurrentPlayerUrl only for the emoji
       const currentUrl = getCurrentPlayerUrl(state);
       const latestTitle = urlToTitle(latestUrl);
-      const linkElement = createStyledLink(latestUrl !== currentUrl ? '⏭️' : '📍', latestTitle);
+      // Use forward emoji if not running, otherwise use the old logic
+      let emoji;
+      if (state.state === 'waiting') {
+        if (state.submittedPlayers && state.submittedPlayers.includes(websocketManager.playerName)) {
+          emoji = '⏭️';
+        } else {
+          emoji = '📍';
+        }
+      } else if (state.state !== 'running') {
+        emoji = '⏭️';
+      } else {
+        emoji = latestUrl !== currentUrl ? '⏭️' : '📍';
+      }
+      const linkElement = createStyledLink(emoji, latestTitle);
       startUrlElement.innerHTML = '';
       startUrlElement.appendChild(linkElement);
     } else if (state.startUrl) {
@@ -94,7 +107,7 @@ export function updateHeader(state) {
   // Update surrender button visibility
   const surrenderButton = document.getElementById("surrenderButton");
   if (surrenderButton) {
-    surrenderButton.style.display = (state.state === 'running' && currentPlayer?.name !== state.creator) ? 'flex' : 'none';
+    surrenderButton.style.display = state.state === 'running' ? 'flex' : 'none';
     surrenderButton.onclick = () => showSurrenderPopup();
   }
 
@@ -305,7 +318,20 @@ function showPlayerInfoPopup(state) {
     currentUrl.style.marginBottom = '0.75rem';
     
     const pinEmoji = document.createElement('span');
-    pinEmoji.textContent = '📍';
+    // Use forward emoji if not running, otherwise use pin
+    let pinEmojiValue;
+    if (state.state === 'waiting') {
+      if (state.submittedPlayers && state.submittedPlayers.includes(player.name)) {
+        pinEmojiValue = '⏭️';
+      } else {
+        pinEmojiValue = '📍';
+      }
+    } else if (state.state !== 'running') {
+      pinEmojiValue = '⏭️';
+    } else {
+      pinEmojiValue = '📍';
+    }
+    pinEmoji.textContent = pinEmojiValue;
     pinEmoji.style.opacity = '0.7';
     
     const urlText = document.createElement('span');
@@ -715,7 +741,7 @@ websocketManager.onStateUpdate((state) => {
     const currentPlayer = state.players.find(p => p.name === websocketManager.playerName);
     if (!currentPlayer && state.observers.find(o => o.name === websocketManager.playerName)) {
         // Player is now an observer, redirect to observer page
-        window.location.href = `/observer/${websocketManager.roomId}`;
+        window.location.href = `/observer/${websocketManager.roomId}?wasPlayer=true`;
         return;
     }
 

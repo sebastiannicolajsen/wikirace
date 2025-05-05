@@ -229,7 +229,7 @@ apiRouter.ws("/ws/:roomId", (ws, req) => {
       const data = JSON.parse(message);
 
       // Handle connection-related messages
-      if (data.type === "join" || data.type === "leave") {
+      if (data.type === "join" || data.type === "leave" || data.type === "pong") {
         const result = handleConnection(ws, roomId, data);
         if (!result) {
           ws.close(1000, "Connection attempt failed");
@@ -283,6 +283,10 @@ app.get("/room/:roomId", (req, res) => {
 
 app.get("/game/:roomId", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/game/game.html"));
+});
+
+app.get("/examples", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/pages/examples.html"));
 });
 
 // Handle all other routes by serving the index page

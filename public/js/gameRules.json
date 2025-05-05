@@ -21,7 +21,7 @@
   },
   "additions": {
     "enabled": [
-      "Effect cards can be used to affect other players' paths. Effect cards will be available for use after link selection."
+      "Effect cards can be used to affect other players' paths. Effect cards will be available for use after link selection. If a player has no effect cards (or cannot use them on anyone), their turn will be skipped. If no players have any effect cards to use, the effect handout phase will be skipped entirely."
     ],
     "application": {
       "once": [

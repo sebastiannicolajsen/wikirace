@@ -10,62 +10,266 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
     />
+    <style>
+      .observer-container {
+        padding: 1rem;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      
+      .context-window {
+        background: white;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+      }
+      
+      .context-window .end-url {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+      
+      .context-window .end-url .emoji {
+        opacity: 0.7;
+      }
+      
+      .context-window .end-url .url-text {
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+      }
+      
+      .context-window .status-text {
+        font-size: 1.1rem;
+        color: var(--primary-color);
+        text-align: center;
+      }
+      
+      .context-window .timer {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        margin-left: 0.5rem;
+      }
+      
+      .context-window .continue-button {
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        margin-top: 1rem;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: var(--border-radius);
+        font-size: 1rem;
+        cursor: pointer;
+        transition: opacity 0.2s;
+        animation: pulse 1.5s infinite;
+      }
+      
+      .context-window .continue-button:hover {
+        opacity: 0.9;
+      }
+
+      .context-window .continue-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        animation: none;
+      }
+
+      .context-window .status-text.waiting-for-creator {
+        animation: text-pulse 2.5s infinite;
+      }
+      
+      .player-card {
+        background: white;
+        padding: 1.25rem;
+        margin-bottom: 0.5rem;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        position: relative;
+      }
+      
+      .player-card .player-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+      }
+      
+      .player-card .player-name {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--primary-color);
+      }
+      
+      .player-card .status-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+      }
+      
+      .player-card .status-check svg {
+        width: 24px;
+        height: 24px;
+      }
+      
+      .player-card .status-spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--primary-color);
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      .player-card.player-waiting {
+        opacity: 1;
+      }
+      
+      .player-card.player-done {
+        opacity: 0.5;
+      }
+      
+      .player-url {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+      
+      .player-url .emoji {
+        opacity: 0.7;
+      }
+      
+      .player-url .url-text {
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+      }
+      
+      .additions-container {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.75rem;
+      }
+      
+      .addition-item {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+      
+      .addition-item .emoji {
+        opacity: 0.7;
+      }
+      
+      .addition-item .number {
+        font-weight: bold;
+      }
+      
+      .addition-item .increment-button {
+        padding: 0.1rem 0.3rem;
+        margin-left: 0.25rem;
+        font-size: 0.8rem;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        cursor: pointer;
+        background-color: white;
+      }
+      
+      .leave-button {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #111;
+        cursor: pointer;
+        padding: 0.5rem;
+        z-index: 100;
+        transition: opacity 0.2s;
+      }
+      
+      .leave-button:hover {
+        opacity: 0.7;
+      }
+
+      .header-button {
+        font-size: 1.8rem;
+        padding: 0.25rem;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1;
+        width: 2.5rem;
+        height: 2.5rem;
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 100;
+      }
+      
+      @media (min-width: 768px) {
+        .observer-container {
+          display: none;
+        }
+
+        .widescreen-message {
+          display: block;
+          text-align: center;
+          padding: 2rem;
+          font-size: 1.2rem;
+          color: var(--primary-color);
+          font-weight: bold;
+        }
+      }
+
+      @media (max-width: 767px) {
+        .widescreen-message {
+          display: none;
+        }
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+
+      @keyframes text-pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+    </style>
   </head>
   <body>
-    <div class="page">
-      <main class="page-content">
-        <div class="container">
-          <div class="card">
-            <div class="room-info">
-              <h1 id="roomName" class="room-name">Room Name</h1>
-              <div class="url-info">
-                <div class="url-item">
-                  <div class="url-header">
-                    <span class="url-label"
-                      >📍<span id="startUrl" class="url-value"
-                        >https://en.wikipedia.org/wiki/...</span
-                      ></span
-                    >
-                  </div>
-                  <p id="startPreview" class="url-preview"></p>
-                </div>
-                <div class="url-item">
-                  <div class="url-header">
-                    <span class="url-label"
-                      >🏁
-                      <span id="endUrl" class="url-value"
-                        >https://en.wikipedia.org/wiki/...</span
-                      ></span
-                    >
-                  </div>
-                  <p id="endPreview" class="url-preview"></p>
-                </div>
-              </div>
-            </div>
-
-            <div class="players-section">
-              <h3 class="section-title">Players</h3>
-              <div id="playerList" class="player-list">
-                <!-- Player badges will be added here -->
-              </div>
-            </div>
-
-            <div id="gameSettings" class="game-settings">
-              <!-- Game settings will be added here -->
-            </div>
-
-            <div class="button-group" style="margin-top: 2rem; display: flex; justify-content: center">
-              <button id="leaveRoom" class="button button-secondary">Leave</button>
-            </div>
-          </div>
-        </div>
-      </main>
+    <div id="headerButtonContainer"></div>
+    
+    <div class="widescreen-message">Widescreen observer panel not supported, coming soon</div>
+    
+    <div class="observer-container">
+      <div id="playersList"></div>
     </div>
 
     <script type="module">
       import websocketManager from "/js/websocket.js";
-      import popupManager from "/js/popup.js";
       import { urlToTitle } from "/js/wikiHelper.js";
+      import popupManager from "/js/popup.js";
 
       // Get room ID from URL
       const roomId = window.location.pathname.split("/").pop();
@@ -82,101 +286,576 @@
         throw new Error("Player information not found");
       }
 
+      // Track previous additions state
+      let previousAdditions = {};
+      let previousPlayerStates = {};
+      let effectNotificationQueue = [];
+      let previouslyEligiblePlayers = new Set();
+
+      // Function to process the notification queue
+      function processNotificationQueue() {
+          while (effectNotificationQueue.length > 0) {
+              const notification = effectNotificationQueue.shift();
+              showEffectUsedNotification(notification.playerName, notification.type, notification.targetName);
+          }
+      }
+
+      // Function to show effect used notification
+      function showEffectUsedNotification(playerName, type, targetName) {
+          const emoji = type === 'bomb' ? '💣' : type === 'swap' ? '🔄' : '↩️';
+          
+          // Create notification container if it doesn't exist
+          let notificationContainer = document.getElementById('effect-notifications');
+          if (!notificationContainer) {
+              notificationContainer = document.createElement('div');
+              notificationContainer.id = 'effect-notifications';
+              notificationContainer.style.cssText = `
+                  position: fixed;
+                  top: 20px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  z-index: 1000;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                  pointer-events: none;
+                  width: auto;
+                  max-width: 90%;
+              `;
+              document.body.appendChild(notificationContainer);
+          }
+          
+          // Create notification element
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+              background: white;
+              padding: 12px 20px;
+              border-radius: 8px;
+              box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+              font-size: 14px;
+              opacity: 0;
+              transform: translateY(-20px);
+              transition: all 0.3s ease;
+              pointer-events: none;
+              white-space: normal;
+              min-width: 200px;
+              max-width: 400px;
+          `;
+          
+          notification.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <b>${playerName}</b> used <b>${type}</b> ${emoji} on <b>${targetName}</b>
+              </div>
+          `;
+          
+          // Add to container
+          notificationContainer.appendChild(notification);
+          
+          // Trigger animation
+          requestAnimationFrame(() => {
+              notification.style.opacity = '1';
+              notification.style.transform = 'translateY(0)';
+          });
+          
+          // Remove after delay
+          setTimeout(() => {
+              notification.style.opacity = '0';
+              notification.style.transform = 'translateY(-20px)';
+              setTimeout(() => {
+                  if (notification.parentNode) {
+                      notification.parentNode.removeChild(notification);
+                  }
+              }, 300); // Wait for fade out animation
+          }, 3000);
+      }
+
+      // Add event listener for addition events
+      window.addEventListener('addition-used', (event) => {
+          const { sender, type, target } = event.detail;
+          effectNotificationQueue.push({ 
+              playerName: sender, 
+              type: type,
+              targetName: target
+          });
+          // Process queue after a short delay to ensure DOM is ready
+          setTimeout(processNotificationQueue, 100);
+      });
+
+      // Function to check for used additions
+      function checkForUsedAdditions(state) {
+          // Store current state for comparison
+          const currentPlayerStates = {};
+          state.players.forEach(player => {
+              currentPlayerStates[player.name] = {
+                  additions: { ...player.additions },
+                  path: player.path ? [...player.path] : []
+              };
+          });
+
+          state.players.forEach(player => {
+              // Initialize previous additions for this player if not set
+              if (!previousAdditions[player.name]) {
+                  previousAdditions[player.name] = { ...player.additions };
+                  previousPlayerStates[player.name] = {
+                      additions: { ...player.additions },
+                      path: player.path ? [...player.path] : []
+                  };
+                  return;
+              }
+
+              // Check each addition type
+              if (state.config?.additions) {
+                  if (state.config.additions.bomb !== undefined && 
+                      (player.additions?.bomb || 0) < (previousAdditions[player.name]?.bomb || 0)) {
+                      // The target will be set by the addition-used event
+                  }
+                  if (state.config.additions.swap !== undefined && 
+                      (player.additions?.swap || 0) < (previousAdditions[player.name]?.swap || 0)) {
+                      // The target will be set by the addition-used event
+                  }
+                  if (state.config.additions.return !== undefined && 
+                      (player.additions?.return || 0) < (previousAdditions[player.name]?.return || 0)) {
+                      // The target will be set by the addition-used event
+                  }
+              }
+
+              // Update previous additions for this player
+              previousAdditions[player.name] = { ...player.additions };
+              previousPlayerStates[player.name] = {
+                  additions: { ...player.additions },
+                  path: player.path ? [...player.path] : []
+              };
+          });
+      }
+
+      function updatePlayersList(state) {
+        const playersList = document.getElementById('playersList');
+        playersList.innerHTML = '';
+
+        // Add context window
+        const contextWindow = document.createElement('div');
+        contextWindow.className = 'context-window';
+        
+        // Always show end URL
+        const endUrlContainer = document.createElement('div');
+        endUrlContainer.className = 'end-url';
+        
+        const endEmoji = document.createElement('span');
+        endEmoji.className = 'emoji';
+        endEmoji.textContent = '🏁';
+        
+        const endUrlText = document.createElement('span');
+        endUrlText.className = 'url-text';
+        endUrlText.textContent = urlToTitle(state.endUrl);
+        
+        endUrlContainer.appendChild(endEmoji);
+        endUrlContainer.appendChild(endUrlText);
+        contextWindow.appendChild(endUrlContainer);
+        
+        // Add status text based on game state
+        const statusText = document.createElement('div');
+        statusText.className = 'status-text';
+        
+        if (state.state === 'running' || state.state === 'waiting') {
+            console.log('Timer state:', {
+                timeLimit: state.countdownTime,
+                waitingTimerStartTime: state.waitingTimerStartTime,
+                state: state.state
+            });
+            if (state.state === 'waiting' && state.countdownTime && state.waitingTimerStartTime) {
+                const endTime = state.waitingTimerStartTime + state.countdownTime * 1000;
+                console.log('Timer values:', {
+                    endTime,
+                    now: Date.now(),
+                    remaining: Math.ceil((endTime - Date.now()) / 1000)
+                });
+                const updateTimer = () => {
+                    const now = Date.now();
+                    const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
+                    if (remaining > 0) {
+                        statusText.textContent = `Players selecting... (${remaining}s)`;
+                        requestAnimationFrame(updateTimer);
+                    } else {
+                        statusText.textContent = 'Player links being selected for other players';
+                    }
+                };
+                requestAnimationFrame(updateTimer);
+            } else if (state.state === 'waiting') {
+                statusText.textContent = 'Player links being selected for other players';
+            } else {
+                statusText.textContent = 'Players selecting...';
+            }
+        } else if (state.state === 'paused') {
+            if (state.config?.continuation === 'creator') {
+                if (playerName === state.creator) {
+                    // Remove status text for creator
+                    statusText.style.display = 'none';
+                    
+                    // Add continue button for creator
+                    const continueButton = document.createElement('button');
+                    continueButton.className = 'continue-button';
+                    continueButton.textContent = 'Continue the game';
+                    continueButton.onclick = () => {
+                        websocketManager.sendContinueGame();
+                        continueButton.disabled = true;
+                        continueButton.textContent = 'Continuing...';
+                    };
+                    contextWindow.appendChild(continueButton);
+                } else {
+                    statusText.textContent = 'Waiting for owner to continue...';
+                    statusText.classList.add('waiting-for-creator');
+                }
+            } else if (state.config?.continuation === 'democratic') {
+                statusText.textContent = 'Waiting for players to continue...';
+                statusText.classList.remove('waiting-for-creator');
+            }
+        } else if (state.state === 'handout') {
+            if (state.config?.additions_callType === 'free_for_all') {
+                const updateStatusText = () => {
+                    if (state.additionState?.additionEndTime) {
+                        const now = Date.now();
+                        const remaining = Math.max(0, Math.ceil((state.additionState.additionEndTime - now) / 1000));
+                        statusText.textContent = `Players playing effect cards (${remaining}s)`;
+                        if (remaining > 0) {
+                            requestAnimationFrame(updateStatusText);
+                        }
+                    } else {
+                        statusText.textContent = 'Players playing effect cards';
+                    }
+                };
+                updateStatusText();
+            } else if (state.config?.additions_callType === 'round_robin' && state.additionState?.eligiblePlayers?.length === 1) {
+                const currentPlayer = state.additionState.eligiblePlayers[0];
+                const updateStatusText = () => {
+                    if (state.additionState?.additionEndTime) {
+                        const now = Date.now();
+                        const remaining = Math.max(0, Math.ceil((state.additionState.additionEndTime - now) / 1000));
+                        statusText.innerHTML = `<span style="color: var(--primary-color);">${currentPlayer}</span> playing effect cards (${remaining}s)`;
+                        if (remaining > 0) {
+                            requestAnimationFrame(updateStatusText);
+                        }
+                    } else {
+                        statusText.innerHTML = `<span style="color: var(--primary-color);">${currentPlayer}</span> playing effect cards`;
+                    }
+                };
+                updateStatusText();
+            } else {
+                statusText.textContent = 'Players playing effect cards';
+            }
+        }
+        
+        contextWindow.appendChild(statusText);
+        playersList.appendChild(contextWindow);
+
+        // Render only the correct header button
+        const headerButtonContainer = document.getElementById('headerButtonContainer');
+        headerButtonContainer.innerHTML = '';
+        if (playerName === state.creator && playerType === 'observer') {
+          // Show close room button
+          const creatorLeaveButton = document.createElement('button');
+          creatorLeaveButton.id = 'creatorLeaveButton';
+          creatorLeaveButton.className = 'header-button';
+          creatorLeaveButton.title = 'Close Room';
+          creatorLeaveButton.textContent = '❌';
+          creatorLeaveButton.onclick = () => showCreatorLeavePopup();
+          headerButtonContainer.appendChild(creatorLeaveButton);
+        }
+
+        // Sort players alphabetically
+        const sortedPlayers = [...state.players].sort((a, b) => a.name.localeCompare(b.name));
+
+        sortedPlayers.forEach(player => {
+          const playerCard = document.createElement('div');
+          playerCard.className = 'player-card';
+          
+          // Add ready/loading indicators for paused state with democratic continuation
+          if (state.state === 'paused' && state.config?.continuation === 'democratic') {
+              if (state.state === 'paused' && state.continueResponses?.includes(player.name)) {
+                  playerCard.classList.add('player-done');
+                  playerCard.innerHTML = `
+                      <div class="player-info">
+                          <span class="player-name">${player.name}</span>
+                          <span class="status-icon">
+                              <span class="status-check">
+                                  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <circle cx="10" cy="10" r="10" fill="#43a047"/>
+                                      <path d="M6 10.5L9 13.5L14 7.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                  </svg>
+                              </span>
+                          </span>
+                      </div>
+                  `;
+              } else if (state.state === 'paused') {
+                  playerCard.classList.add('player-waiting');
+                  playerCard.innerHTML = `
+                      <div class="player-info">
+                          <span class="player-name">${player.name}</span>
+                          <span class="status-icon">
+                              <span class="status-spinner"></span>
+                          </span>
+                      </div>
+                  `;
+              }
+          } else if (state.state === 'paused' && state.config?.continuation === 'creator') {
+              // In creator mode, just show the player name without any status indicators
+              playerCard.innerHTML = `
+                  <div class="player-info">
+                      <span class="player-name">${player.name}</span>
+                  </div>
+              `;
+          } else if (state.state === 'handout') {
+              console.log('Player status check:', {
+                  player: player.name,
+                  inEligiblePlayers: state.additionState?.eligiblePlayers?.includes(player.name),
+                  inReadyPlayers: state.additionState?.readyPlayers?.includes(player.name),
+                  eligiblePlayers: state.additionState?.eligiblePlayers,
+                  readyPlayers: state.additionState?.readyPlayers,
+                  previouslyEligible: state.additionState?.previouslyEligiblePlayers?.includes(player.name)
+              });
+
+              if (state.config?.additions_callType === 'free_for_all') {
+                  // Free for all mode - show checkmark for ready players
+                  if (state.additionState?.readyPlayers?.includes(player.name) || !state.additionState?.eligiblePlayers?.includes(player.name)) {
+                      playerCard.classList.add('player-done');
+                      playerCard.innerHTML = `
+                          <div class="player-info">
+                              <span class="player-name">${player.name}</span>
+                              <span class="status-icon">
+                                  <span class="status-check">
+                                      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                          <circle cx="10" cy="10" r="10" fill="#43a047"/>
+                                          <path d="M6 10.5L9 13.5L14 7.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                      </svg>
+                                  </span>
+                              </span>
+                          </div>
+                      `;
+                  } else if (state.additionState?.eligiblePlayers?.includes(player.name)) {
+                      playerCard.classList.add('player-waiting');
+                      playerCard.innerHTML = `
+                          <div class="player-info">
+                              <span class="player-name">${player.name}</span>
+                              <span class="status-icon">
+                                  <span class="status-spinner"></span>
+                              </span>
+                          </div>
+                      `;
+                  }
+              } else if (state.config?.additions_callType === 'round_robin') {
+                  // Round robin mode - different handling
+                  if (state.additionState?.eligiblePlayers?.includes(player.name)) {
+                      // Current player - show spinner and add to tracking
+                      previouslyEligiblePlayers.add(player.name);
+                      playerCard.classList.add('player-waiting');
+                      playerCard.innerHTML = `
+                          <div class="player-info">
+                              <span class="player-name">${player.name}</span>
+                              <span class="status-icon">
+                                  <span class="status-spinner"></span>
+                              </span>
+                          </div>
+                      `;
+                  } else if (previouslyEligiblePlayers.has(player.name)) {
+                      // Previously eligible player - show checkmark
+                      playerCard.classList.add('player-done');
+                      playerCard.innerHTML = `
+                          <div class="player-info">
+                              <span class="player-name">${player.name}</span>
+                              <span class="status-icon">
+                                  <span class="status-check">
+                                      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                          <circle cx="10" cy="10" r="10" fill="#43a047"/>
+                                          <path d="M6 10.5L9 13.5L14 7.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                      </svg>
+                                  </span>
+                              </span>
+                          </div>
+                      `;
+                  } else {
+                      // Not yet eligible - just grey out
+                      playerCard.classList.add('player-done');
+                      playerCard.innerHTML = `
+                          <div class="player-info">
+                              <span class="player-name">${player.name}</span>
+                          </div>
+                      `;
+                  }
+              }
+          } else {
+              // Regular player card for other states
+              playerCard.innerHTML = `
+                  <div class="player-info">
+                      <span class="player-name">${player.name}</span>
+                  </div>
+              `;
+          }
+
+          // Current URL
+          const urlContainer = document.createElement('div');
+          urlContainer.className = 'player-url';
+          
+          const emoji = document.createElement('span');
+          emoji.className = 'emoji';
+          // Use forward emoji if not running, otherwise use pin
+          let emojiValue;
+          if (state.state === 'waiting') {
+            if (state.submittedPlayers && state.submittedPlayers.includes(player.name)) {
+              emojiValue = '⏭️';
+            } else {
+              emojiValue = '📍';
+            }
+          } else if (state.state !== 'running') {
+            emojiValue = '⏭️';
+          } else {
+            emojiValue = '📍';
+          }
+          emoji.textContent = emojiValue;
+          
+          const urlText = document.createElement('span');
+          urlText.className = 'url-text';
+          if (player.path && player.path.length > 0) {
+            const lastEntry = player.path[player.path.length - 1];
+            urlText.textContent = urlToTitle(lastEntry.url);
+            // Add effect emoji if there is one
+            if (lastEntry.effect) {
+              let effectEmoji;
+              switch (lastEntry.effect) {
+                case 'start': effectEmoji = '📍'; break;
+                case 'end': effectEmoji = '🏁'; break;
+                case 'bombed': effectEmoji = '💣'; break;
+                case 'swapped': effectEmoji = '🔄'; break;
+                case 'returned': effectEmoji = '↩️'; break;
+                case 'random': effectEmoji = '🎲'; break;
+                case 'user_selected': effectEmoji = '👥'; break;
+                case 'surrender': effectEmoji = '🏳️'; break;
+                case 'cancelled': effectEmoji = '❌'; break;
+                default: effectEmoji = '➡️';
+              }
+              emoji.textContent = effectEmoji;
+            }
+          } else {
+            urlText.textContent = urlToTitle(state.startUrl);
+          }
+          
+          urlContainer.appendChild(emoji);
+          urlContainer.appendChild(urlText);
+          playerCard.appendChild(urlContainer);
+
+          // Show additions if enabled
+          if (state.config?.additions) {
+            const additionsContainer = document.createElement('div');
+            additionsContainer.className = 'additions-container';
+
+            if (state.config.additions.bomb !== undefined) {
+              const bombContainer = document.createElement('div');
+              bombContainer.className = 'addition-item';
+              
+              const bombEmoji = document.createElement('span');
+              bombEmoji.className = 'emoji';
+              bombEmoji.textContent = '💣';
+              
+              const bombNumber = document.createElement('span');
+              bombNumber.className = 'number';
+              bombNumber.textContent = player.additions?.bomb || 0;
+              
+              bombContainer.appendChild(bombEmoji);
+              bombContainer.appendChild(bombNumber);
+              
+              // Add increment button for creator if enabled
+              if (state.config.additions_creatorGive && websocketManager.playerName === state.creator) {
+                const giveButton = document.createElement('button');
+                giveButton.textContent = '+';
+                giveButton.className = 'increment-button';
+                giveButton.onclick = () => websocketManager.sendGiveAddition(player.name, 'bomb');
+                bombContainer.appendChild(giveButton);
+              }
+              
+              additionsContainer.appendChild(bombContainer);
+            }
+
+            if (state.config.additions.swap !== undefined) {
+              const swapContainer = document.createElement('div');
+              swapContainer.className = 'addition-item';
+              
+              const swapEmoji = document.createElement('span');
+              swapEmoji.className = 'emoji';
+              swapEmoji.textContent = '🔄';
+              
+              const swapNumber = document.createElement('span');
+              swapNumber.className = 'number';
+              swapNumber.textContent = player.additions?.swap || 0;
+              
+              swapContainer.appendChild(swapEmoji);
+              swapContainer.appendChild(swapNumber);
+              
+              // Add increment button for creator if enabled
+              if (state.config.additions_creatorGive && websocketManager.playerName === state.creator) {
+                const giveButton = document.createElement('button');
+                giveButton.textContent = '+';
+                giveButton.className = 'increment-button';
+                giveButton.onclick = () => websocketManager.sendGiveAddition(player.name, 'swap');
+                swapContainer.appendChild(giveButton);
+              }
+              
+              additionsContainer.appendChild(swapContainer);
+            }
+
+            if (state.config.additions.return !== undefined) {
+              const returnContainer = document.createElement('div');
+              returnContainer.className = 'addition-item';
+              
+              const returnEmoji = document.createElement('span');
+              returnEmoji.className = 'emoji';
+              returnEmoji.textContent = '↩️';
+              
+              const returnNumber = document.createElement('span');
+              returnNumber.className = 'number';
+              returnNumber.textContent = player.additions?.return || 0;
+              
+              returnContainer.appendChild(returnEmoji);
+              returnContainer.appendChild(returnNumber);
+              
+              // Add increment button for creator if enabled
+              if (state.config.additions_creatorGive && websocketManager.playerName === state.creator) {
+                const giveButton = document.createElement('button');
+                giveButton.textContent = '+';
+                giveButton.className = 'increment-button';
+                giveButton.onclick = () => websocketManager.sendGiveAddition(player.name, 'return');
+                returnContainer.appendChild(giveButton);
+              }
+              
+              additionsContainer.appendChild(returnContainer);
+            }
+
+            playerCard.appendChild(additionsContainer);
+          }
+
+          playersList.appendChild(playerCard);
+        });
+      }
+
       // Initialize WebSocket with message handler
       websocketManager.onStateUpdate((state) => {
         console.log("Received game state:", state);
 
-        // Update room name
-        document.getElementById("roomName").textContent =
-          state.name || "Unnamed Room";
-
-        // Update URLs
-        if (state.startUrl) {
-          document.getElementById("startUrl").textContent = urlToTitle(
-            state.startUrl
-          );
-          const startPreview = document.getElementById("startPreview");
-          startPreview.textContent = state.startPreview || "";
-          startPreview.style.setProperty(
-            "--background-color",
-            getComputedStyle(document.body).backgroundColor
-          );
-          startPreview.addEventListener("click", function () {
-            this.classList.toggle("expanded");
-          });
-        }
-        if (state.endUrl) {
-          document.getElementById("endUrl").textContent = urlToTitle(
-            state.endUrl
-          );
-          const endPreview = document.getElementById("endPreview");
-          endPreview.textContent = state.endPreview || "";
-          endPreview.style.setProperty(
-            "--background-color",
-            getComputedStyle(document.body).backgroundColor
-          );
-          endPreview.addEventListener("click", function () {
-            this.classList.toggle("expanded");
-          });
+        // Handle redirection if game is in lobby
+        if (state.state === 'lobby') {
+          window.location.href = `/room/${roomId}`;
+          return;
         }
 
-        // Update player list
-        const playerList = document.getElementById("playerList");
-        playerList.innerHTML = "";
+        // Check for used additions before updating the players list
+        checkForUsedAdditions(state);
 
-        // Create a Set to track which players we've already shown
-        const shownPlayers = new Set();
+        // Update players list
+        updatePlayersList(state);
 
-        // Add players
-        state.players.forEach((player) => {
-          if (!shownPlayers.has(player.name)) {
-            const badge = document.createElement("div");
-            badge.className = `player-badge ${
-              player.name === state.creator ? "creator" : ""
-            }`;
-
-            // Add player name
-            const nameSpan = document.createElement("span");
-            nameSpan.textContent = player.name;
-            if (player.name === state.creator) {
-              nameSpan.textContent += " 👑";
-            }
-            badge.appendChild(nameSpan);
-
-            playerList.appendChild(badge);
-            shownPlayers.add(player.name);
-          }
-        });
-
-        // Add observers (only if they haven't been shown as players)
-        state.observers.forEach((observer) => {
-          if (!shownPlayers.has(observer.name)) {
-            const badge = document.createElement("div");
-            badge.className = "player-badge observer";
-
-            // Add observer name
-            const nameSpan = document.createElement("span");
-            nameSpan.textContent = observer.name + (observer.name === state.creator ? " 👑 👁️" : " 👁️");
-            badge.appendChild(nameSpan);
-
-            playerList.appendChild(badge);
-            shownPlayers.add(observer.name);
-          }
-        });
+        // Process any queued notifications after state update
+        setTimeout(processNotificationQueue, 100);
       });
 
       // Connect to WebSocket
       websocketManager.connect(roomId, playerName, playerType);
-
-      // Handle leave room button
-      document.getElementById("leaveRoom").addEventListener("click", () => {
-        websocketManager.isIntentionalDisconnect = true;
-        websocketManager.sendMessage({
-          type: "leave",
-          playerName: playerName,
-        });
-        window.location.href = "/";
-      });
 
       // Handle WebSocket errors
       window.addEventListener("websocket-error", (event) => {
@@ -190,11 +869,18 @@
 
       // Handle WebSocket close
       window.addEventListener("websocket-close", (event) => {
+        const closeReason = event.detail.reason;
+        
+        if (closeReason.intentional) {
+          // This is an intentional disconnect, don't show error or store in localStorage
+          return;
+        }
+
+        // Handle non-intentional disconnects
         if (event.detail.code === 1000) {
-          popupManager.showInfo(
-            event.detail.reason || "Connection attempt failed",
-            "error"
-          );
+          const errorMessage = "Connection attempt failed";
+          popupManager.showInfo(errorMessage, "error");
+          localStorage.setItem("connectionError", errorMessage);
           // Clear session storage
           sessionStorage.removeItem("playerName");
           sessionStorage.removeItem("playerType");
@@ -221,6 +907,133 @@
         // Redirect to home page
         window.location.href = "/";
       });
+
+      function showSurrenderPopup() {
+        const popup = popupManager.createPopup('info', '', 'info', false);
+        
+        const content = document.createElement('div');
+        content.style.padding = '1.5rem';
+        content.style.textAlign = 'center';
+        content.style.display = 'flex';
+        content.style.flexDirection = 'column';
+        content.style.alignItems = 'center';
+        content.style.gap = '1.5rem';
+        content.style.width = '100%';
+        content.style.maxWidth = '400px';
+        content.style.margin = '0 auto';
+        
+        const message = document.createElement('div');
+        message.style.fontSize = '1.2rem';
+        message.style.fontWeight = 'bold';
+        message.textContent = 'Are you sure you want to surrender?';
+        content.appendChild(message);
+        
+        const buttons = document.createElement('div');
+        buttons.style.display = 'flex';
+        buttons.style.justifyContent = 'center';
+        buttons.style.width = '100%';
+        
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = 'Confirm Surrender';
+        confirmButton.className = 'button button-primary';
+        confirmButton.style.fontSize = '1rem';
+        confirmButton.style.padding = '0.75rem 1.5rem';
+        confirmButton.onclick = () => {
+          websocketManager.sendPlayerSurrender();
+          popupManager.closePopup(popup);
+        };
+        
+        buttons.appendChild(confirmButton);
+        content.appendChild(buttons);
+        
+        const messageContainer = popup.querySelector('.popup-message-container');
+        if (messageContainer) {
+          messageContainer.style.padding = '0';
+          messageContainer.style.margin = '0';
+          messageContainer.style.display = 'flex';
+          messageContainer.style.alignItems = 'center';
+          messageContainer.style.justifyContent = 'center';
+          const messageElement = messageContainer.querySelector('.popup-message');
+          if (messageElement) {
+            messageElement.remove();
+          }
+          messageContainer.insertBefore(content, messageContainer.firstChild);
+        }
+
+        const closeButton = popup.querySelector('.popup-close');
+        if (closeButton) {
+          closeButton.style.position = 'absolute';
+          closeButton.style.top = '0.5rem';
+          closeButton.style.right = '0.5rem';
+          closeButton.style.zIndex = '1';
+        }
+      }
+
+      function showCreatorLeavePopup() {
+        const popup = popupManager.createPopup('info', '', 'info', false);
+        
+        const content = document.createElement('div');
+        content.style.padding = '1.5rem';
+        content.style.textAlign = 'center';
+        content.style.display = 'flex';
+        content.style.flexDirection = 'column';
+        content.style.alignItems = 'center';
+        content.style.gap = '1.5rem';
+        content.style.width = '100%';
+        content.style.maxWidth = '400px';
+        content.style.margin = '0 auto';
+        
+        const message = document.createElement('div');
+        message.style.fontSize = '1.2rem';
+        message.style.fontWeight = 'bold';
+        message.textContent = 'Are you sure you want to close the room?';
+        content.appendChild(message);
+        
+        const buttons = document.createElement('div');
+        buttons.style.display = 'flex';
+        buttons.style.justifyContent = 'center';
+        buttons.style.width = '100%';
+        
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = 'Close Room';
+        confirmButton.className = 'button button-primary';
+        confirmButton.style.fontSize = '1rem';
+        confirmButton.style.padding = '0.75rem 1.5rem';
+        confirmButton.onclick = () => {
+          websocketManager.isIntentionalDisconnect = true;
+          websocketManager.sendMessage({
+            type: "leave",
+            playerName: websocketManager.playerName,
+          });
+          window.location.href = "/";
+          popupManager.closePopup(popup);
+        };
+        
+        buttons.appendChild(confirmButton);
+        content.appendChild(buttons);
+        
+        const messageContainer = popup.querySelector('.popup-message-container');
+        if (messageContainer) {
+          messageContainer.style.padding = '0';
+          messageContainer.style.margin = '0';
+          messageContainer.style.display = 'flex';
+          messageContainer.style.alignItems = 'center';
+          messageContainer.style.justifyContent = 'center';
+          const messageElement = messageContainer.querySelector('.popup-message');
+          if (messageElement) {
+            messageElement.remove();
+          }
+          messageContainer.insertBefore(content, messageContainer.firstChild);
+        }
+
+        const closeButton = popup.querySelector('.popup-close');
+        if (closeButton) {
+          closeButton.style.position = 'absolute';
+          closeButton.style.top = '0.5rem';
+          closeButton.style.right = '0.5rem';
+          closeButton.style.zIndex = '1';
+        }
+      }
     </script>
   </body>
 </html> 

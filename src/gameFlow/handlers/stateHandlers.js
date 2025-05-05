@@ -180,15 +180,33 @@ function handleLobbyState(room, data) {
     room.winner = null;
     room.hasWinner = false;
     room.currentUrl = null;
-    room.hasAdditions = false;
+    room.hasAdditions = room.config.additions && Object.keys(room.config.additions).length > 0;
     room.nextAddition = null;
-    room.startUrl = null;
-    room.endUrl = null;
     
     // Reset addition-related state
     room.additionRound = 0;  // Track which round of additions we're in
     room.additionOrder = []; // Track the order of players for round-robin additions
     room.usedAdditions = new Set(); // Track which players have used additions this round
+
+    // Handle surrendered players
+    if (room.surrenderedPlayers) {
+        // Move surrendered players back to active players
+        for (const [playerName, playerData] of room.surrenderedPlayers) {
+            // Create new player entry with reset path
+            room.players.set(playerName, {
+                type: 'player',
+                path: [],
+                additions: {}
+            });
+        }
+        // Clear surrendered players
+        room.surrenderedPlayers = new Map();
+    }
+
+    // Reset all player paths to empty
+    for (const player of room.players.values()) {
+        player.path = [];
+    }
 
     return GameStates.LOBBY;
 }
@@ -345,9 +363,20 @@ function handleHandoutState(room, data) {
   const playerNames = Array.from(room.players.keys());
   console.log(`[stateHandlers] Available players:`, playerNames);
 
+  // Filter to only players who have at least one addition available
+  const playersWithAdditions = playerNames.filter(name => {
+    const player = room.players.get(name);
+    return player && player.additions && Object.values(player.additions).some(count => count > 0);
+  });
+
+  if (playersWithAdditions.length === 0) {
+    console.log(`[stateHandlers] No player has any additions left, moving to RUNNING state for room ${room.id}`);
+    return handleStateChange(room, GameStates.RUNNING, data, true);
+  }
+
   // Always initialize addition state when entering HANDOUT
   // Create a random order of players for round-robin
-  room.additionOrder = playerNames.sort(() => Math.random() - 0.5);
+  room.additionOrder = playersWithAdditions.sort(() => Math.random() - 0.5);
   console.log(`[stateHandlers] Created addition order:`, room.additionOrder);
   
   // Reset current player index
@@ -355,7 +384,7 @@ function handleHandoutState(room, data) {
 
   // Always set up eligible players based on call type
   if (room.config.additions_callType === 'free_for_all') {
-    room.eligiblePlayers = playerNames;
+    room.eligiblePlayers = playersWithAdditions;
   } else { // round_robin
     // Only include the current player in eligible players
     const currentPlayer = room.additionOrder[room.currentPlayerIndex];

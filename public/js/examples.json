@@ -1,0 +1,90 @@
+[
+  {
+    "name": "Classic Race",
+    "description": "No effect cards, no breaks, just pure speed and knowledge!",
+    "parameters": "Q=30PNPBNRNSN",
+    "emoji": "🏁",
+    "tags": ["classic"],
+    "category": "Regular"
+  },
+  {
+    "name": "Uno Race",
+    "description": "A fun race where all effect cards are enabled and can be obtained during play. ",
+    "parameters": "Q=30PAPB1R1S1F20YYYL2S2",
+    "emoji": "🃏",
+    "tags": ["classic", "effect cards", "chaos", "strategy"],
+    "category": "Regular"
+  },
+  {
+    "name": "Speedy",
+    "description": "A fast-paced race with a very short timer. Can you keep up and think on your feet?",
+    "parameters": "Q=10PNRBNRNSN",
+    "emoji": "⚡",
+    "tags": ["speed", "challenge"],
+    "category": "Regular"
+  },
+  {
+    "name": "Strategic",
+    "description": "A slow paced, turn-based race. Might lead to some interesting results?",
+    "parameters": "Q=35PAPB2R2S2R60YYNL3S2",
+    "emoji": "♟️",
+    "tags": ["strategy", "classic"],
+    "category": "Regular"
+  },
+  {
+    "name": "Bombs Away!",
+    "description": "Race with a twist: A few bombs each! Use them wisely!",
+    "parameters": "Q=30PAPB3RNSNF30NNYLNS",
+    "emoji": "💣",
+    "tags": ["effect cards", "chaos", "challenge"],
+    "category": "Spicy"
+  },
+  {
+    "name": "Swaptastic",
+    "description": "Plenty of swaps for everyone! Can you keep up?",
+    "parameters": "Q=10PNRBNRNS99F10NNYLNSN",
+    "emoji": "😵‍💫",
+    "tags": ["effect cards", "chaos", "speed"],
+    "category": "Spicy"
+  },
+  {
+    "name": "Ultimate Chaos",
+    "description": "All effect cards enabled, short timers, full chaos.",
+    "parameters": "Q=20PAPB3R3S3F10YYYLNSN",
+    "emoji": "🌪️",
+    "tags": ["effect cards", "chaos", "challenge"],
+    "category": "Spicy"
+  },
+  {
+    "name": "Blitzkreig",
+    "description": "A blitz game with both bombs and a super short timer. Only for the bold!",
+    "parameters": "Q=10PNPB99RNSNF10NYYLNSN",
+    "emoji": "🚀",
+    "tags": ["blitz", "speed", "challenge", "effect cards"],
+    "category": "Spicy"
+  },
+  {
+    "name": "Find Kevin Bacon",
+    "description": "Classic race, but your goal is to reach the Wikipedia page for Kevin Bacon.",
+    "parameters": "E=https://en.wikipedia.org/wiki/Kevin_Bacon",
+    "emoji": "🥓",
+    "tags": ["classic", "person"],
+    "category": "Player Based"
+  },
+  {
+    "name": "Find Hitler",
+    "description": "Classic race, but your goal is to reach the Wikipedia page for Adolf Hitler.",
+    "parameters": "E=https://en.wikipedia.org/wiki/Adolf_Hitler",
+    "emoji": "🧑‍✈️",
+    "tags": ["classic", "person"],
+    "category": "Player Based"
+  },
+  {
+    "name": "Find Jesus",
+    "description": "Classic race, but your goal is to reach the Wikipedia page for Jesus.",
+    "parameters": "E=https://en.wikipedia.org/wiki/Jesus",
+    "emoji": "✝️",
+    "tags": ["classic", "person"],
+    "category": "Player Based"
+  }
+] 

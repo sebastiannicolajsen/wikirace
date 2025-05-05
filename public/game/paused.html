@@ -1,8 +1,7 @@
 <div class="container">
   <div class="card">
     <div class="pause-message">
-      <h3>Game Paused</h3>
-      <p id="waitingMessage">Waiting for players to continue...</p>
+      <h3 id="waitingMessage" style="font-size:2.2rem;">Waiting for players to continue...</h3>
     </div>
 
     <div class="player-list">
@@ -45,6 +44,16 @@
     margin-bottom: 0.5rem;
   }
 
+  .pause-message h3.waiting-for-creator {
+    animation: text-pulse 2.5s infinite;
+  }
+
+  @keyframes text-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
   .player-list {
     margin-bottom: 2rem;
     width: 100%;
@@ -78,6 +87,19 @@
     font-weight: 500;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 4rem;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(80, 140, 255, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(80, 140, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(80, 140, 255, 0); }
+  }
+
+  @keyframes pulse-gray {
+    0% { box-shadow: 0 0 0 0 rgba(160, 160, 160, 0.5); }
+    70% { box-shadow: 0 0 0 10px rgba(160, 160, 160, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(160, 160, 160, 0); }
   }
 
   .button:hover {
@@ -91,6 +113,7 @@
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+    animation: none;
   }
 
   .current-player-section {
@@ -137,22 +160,26 @@
   }
 
   .player-status-item {
-    margin-bottom: 1rem;
-    padding: 0.75rem var(--spacing-unit);
-    border-radius: 0;
-    background-color: #f5f5f5;
-    transition: background-color 0.2s ease;
-    width: 100%;
-    text-align: left;
+    display: block;
+    width: calc(100% - 2rem) !important;
+    margin: 0.5rem 1rem !important;
+    border: 1px solid #9E9E9E;
+    background: #fff;
+    box-sizing: border-box;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 1rem;
+    min-width: 0;
+    max-width: 100%;
+    flex: unset;
+    align-items: unset;
+    height: auto;
+    border-left: 4px solid #bbb;
   }
 
   .player-info {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
-    width: 100%;
-    text-align: left;
   }
 
   .player-name {
@@ -195,5 +222,108 @@
     font-size: 0.8rem;
     color: #666;
     text-align: left;
+  }
+
+  .other-players-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: flex-start;
+  }
+
+  .status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5em;
+    height: 1.5em;
+    margin-left: 0;
+    padding-left: 0.5em;
+    vertical-align: middle;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  /* Spinner styles */
+  .status-spinner {
+    border: 3px solid #e0e0e0;
+    border-top: 3px solid #2196f3;
+    border-radius: 50%;
+    width: 1.5em;
+    height: 1.5em;
+    min-width: 1.5em;
+    min-height: 1.5em;
+    animation: spin 1s linear infinite;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Checkmark styles */
+  .status-check {
+    display: inline-block;
+    width: 1.3em;
+    height: 1.3em;
+    vertical-align: middle;
+  }
+
+  @media (max-width: 900px) {
+    .other-players-section {
+      gap: 1rem;
+    }
+    .player-status-item {
+      width: 48%;
+      max-width: 100%;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .other-players-section {
+      display: flex;
+      flex-direction: column;
+      flex-wrap: unset;
+      gap: 0;
+      align-items: center;
+    }
+    .player-status-item {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      flex: unset;
+      align-items: unset;
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 1rem;
+      box-shadow: none;
+      height: auto;
+      border-left: 4px solid #bbb;
+      background: #fff;
+      box-sizing: border-box;
+    }
+    .player-name, .player-path, .next-url, .chosen-by-text {
+      line-height: 1.2;
+      margin: 0;
+      padding: 0;
+    }
+    .player-name {
+      font-size: 0.98rem;
+      margin-bottom: 0.1rem;
+    }
+    .player-path {
+      font-size: 0.93rem;
+      gap: 0;
+    }
+  }
+
+  .player-done {
+    opacity: 0.5;
+  }
+
+  .player-waiting {
+    animation: pulse-gray 2.5s infinite;
   }
 </style> 

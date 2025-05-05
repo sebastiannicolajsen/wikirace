@@ -80,13 +80,36 @@ class WebSocketManager {
       if (this.isIntentionalDisconnect) {
         // Reset the intentional disconnect flag after handling the close
         this.isIntentionalDisconnect = false;
-      } else if (event.code === 1000) {
-        // Handle connection attempt failed
+        // Clean up the WebSocket reference
+        this.ws = null;
+        return; // Don't show error or attempt reconnect for intentional disconnects
+      }
+
+      // Try to parse the reason as JSON
+      let closeReason;
+      try {
+        closeReason = JSON.parse(event.reason);
+      } catch (e) {
+        closeReason = { intentional: false };
+      }
+
+      if (closeReason.intentional) {
+        // This is an intentional disconnect, don't treat as error
+        this.ws = null;
+        return;
+      }
+
+      // Handle non-intentional disconnects
+      if (event.code === 1000) {
         const errorMessage = event.reason || "Connection attempt failed";
         localStorage.setItem("connectionError", errorMessage);
+        // Dispatch websocket-close event with the parsed reason
         window.dispatchEvent(
-          new CustomEvent("websocket-error", {
-            detail: { message: errorMessage },
+          new CustomEvent("websocket-close", {
+            detail: { 
+              code: event.code,
+              reason: closeReason
+            }
           })
         );
       } else {
@@ -158,12 +181,6 @@ class WebSocketManager {
         window.location.href = `/game/${this.roomId}`;
         return;
       }
-    } else if (state.state === 'finished' && this.playerType === 'observer') {
-      // Close WebSocket before redirecting
-      this.unintentionalDisconnect();
-      // Redirect observers to game page to see results
-      window.location.href = `/game/${this.roomId}`;
-      return;
     }
 
     // Handle waiting timer
@@ -435,6 +452,11 @@ class WebSocketManager {
   // Main message handler - should be at the bottom
   handleMessage(message) {
     console.log('WebSocket message received:', message);
+    if (message.type === 'ping') {
+      // Respond to ping with pong
+      this.sendMessage({ type: 'pong' });
+      return;
+    }
     if (message.type === 'select_for_missing_players') {
         console.log('select_for_missing_players message received for player:', this.playerName);
         console.log('Message content:', message);

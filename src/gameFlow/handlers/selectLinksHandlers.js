@@ -176,6 +176,112 @@ function handleRandomUrlsResponse(room, data) {
   }
 }
 
+// Add new function to handle retries and fallbacks
+function handleMissingPlayerResponses(room, data) {
+  const missingPlayers = Array.from(room.players.keys()).filter(
+    playerName => !room.submittedPlayers.has(playerName)
+  );
+
+  // Initialize or update retry counts
+  if (!room.randomUrlRetries) {
+    room.randomUrlRetries = new Map();
+  }
+
+  missingPlayers.forEach(playerName => {
+    const player = room.players.get(playerName);
+    if (!player) return;
+
+    const retryCount = room.randomUrlRetries.get(playerName) || 0;
+    
+    if (retryCount < 2) {
+      // Send another request
+      room.randomUrlRetries.set(playerName, retryCount + 1);
+      
+      const message = {
+        type: room.config.chooser === 'random' ? "request_random_url" : "request_random_urls",
+        count: room.config.chooser === 'random' ? 1 : 5
+      };
+      sendMessageWithQueue(
+        playerName,
+        message,
+        player.ws
+      );
+
+      // Set timeout for next retry or fallback
+      setTimeout(() => {
+        handleMissingPlayerResponses(room, data);
+      }, 2000);
+    } else {
+      // Max retries reached, use fallback
+      const player = room.players.get(playerName);
+      if (player && player.path && player.path.length > 0) {
+        // Get the last 5 (or fewer) links from the player's path
+        const lastLinks = player.path.slice(-5).map(entry => entry.url);
+        
+        // Add these links to pendingRandomUrls
+        if (!room.pendingRandomUrls) {
+          room.pendingRandomUrls = new Map();
+        }
+        room.pendingRandomUrls.set(playerName, lastLinks);
+        
+        // Check if we now have all responses
+        if (room.pendingRandomUrls.size === room.players.size - room.submittedPlayers.size) {
+          const firstSubmitter = Array.from(room.submittedPlayers)[0];
+          if (firstSubmitter) {
+            const submitter = room.players.get(firstSubmitter);
+            if (submitter) {
+              const selectionsNeeded = Array.from(room.pendingRandomUrls.entries()).map(
+                ([playerName, urls]) => ({ playerName, urls })
+              );
+              
+              sendMessageWithQueue(
+                firstSubmitter,
+                {
+                  type: "select_for_missing_players",
+                  playerName: firstSubmitter,
+                  selections: selectionsNeeded
+                },
+                submitter.ws
+              );
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function handleWaitingTimerExpired(room, data) {
+  // Clear the waiting timer
+  if (room.waitingTimer) {
+    room.waitingTimer = null;
+  }
+
+  // Check if any player has reached the goal first
+  if (checkForWinner(room)) {
+    handleStateChange(room, GameStates.FINISHED, data, true);
+    return;
+  }
+
+  // Track players who missed clicking links
+  Array.from(room.players.keys()).forEach(playerName => {
+    if (!room.submittedPlayers.has(playerName)) {
+      // Increment the missed links count for this player
+      const currentCount = room.missedLinks.get(playerName) || 0;
+      room.missedLinks.set(playerName, currentCount + 1);
+    }
+  });
+
+  // Only proceed with selection if there's no winner
+  if (!checkForWinner(room)) {
+    // Start the retry process for missing players
+    handleMissingPlayerResponses(room, data);
+  }
+
+  // Broadcast the updated state
+  broadcastGameState(room);
+}
+
 function handleSelectionForMissingPlayers(room, data) {
   const { selections } = data;
   

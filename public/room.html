@@ -879,6 +879,9 @@
             if (player.name === state.creator) {
               nameSpan.textContent += " 👑";
             }
+            if (player.name === playerName) {
+              nameSpan.textContent += " (you)";
+            }
             badge.appendChild(nameSpan);
 
             // Add kick button if this player is the creator and the player is not the creator
@@ -910,6 +913,9 @@
             // Add observer name
             const nameSpan = document.createElement("span");
             nameSpan.textContent = observer.name + (observer.name === state.creator ? " 👑 👁️" : " 👁️");
+            if (observer.name === playerName) {
+              nameSpan.textContent += " (you)";
+            }
             badge.appendChild(nameSpan);
 
             // Add kick button if this player is the creator and the observer is not the creator

@@ -82,17 +82,17 @@ function isValidWikiUrl(input) {
         }
 
         // Check for non-article content
-        const path = url.pathname.toLowerCase();
+        const path = url.pathname;
+        const article = path.replace(/^\/wiki\//, '');
         const invalidPrefixes = [
-            '/file:', '/special:', '/help:', '/template:', '/category:', '/portal:', '/wikipedia:',
-            '/user:', '/talk:', '/project:', '/module:', '/mediawiki:', '/draft:', '/book:',
-            '/wiktionary:', '/wikibooks:', '/wikiquote:', '/wikisource:', '/wikinews:',
-            '/wikiversity:', '/wikivoyage:', '/wikidata:', '/commons:', '/meta:', '/incubator:',
-            '/outreach:', '/species:', '/media:', '/s:', '/q:', '/n:', '/v:', '/voy:', '/d:',
-            '/c:', '/m:', '/i:', '/o:'
+            'File:', 'Special:', 'Help:', 'Template:', 'Category:', 'Portal:', 'Wikipedia:',
+            'User:', 'Talk:', 'Project:', 'Module:', 'MediaWiki:', 'Draft:', 'Book:',
+            'Wiktionary:', 'Wikibooks:', 'Wikiquote:', 'Wikisource:', 'Wikinews:',
+            'Wikiversity:', 'Wikivoyage:', 'Wikidata:', 'Commons:', 'Meta:', 'Incubator:',
+            'Outreach:', 'Species:', 'Media:'
         ];
 
-        return !invalidPrefixes.some(prefix => path.includes(prefix));
+        return !invalidPrefixes.some(prefix => article.startsWith(prefix));
     } catch {
         return false;
     }

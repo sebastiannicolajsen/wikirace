@@ -198,10 +198,6 @@
               return;
           }
 
-          // Reset scroll position when loading new state
-          window.scrollTo(0, 0);
-          gameContentContainer.scrollTop = 0;
-          
           // Always update the game state
           try {
               await loadGameState(state, gameContentContainer);
@@ -227,8 +223,16 @@
 
       // Handle WebSocket close
       window.addEventListener("websocket-close", (event) => {
+        const closeReason = event.detail.reason;
+        
+        if (closeReason.intentional) {
+          // This is an intentional disconnect, don't show error or store in localStorage
+          return;
+        }
+
+        // Handle non-intentional disconnects
         if (event.detail.code === 1000) {
-          const errorMessage = event.detail.reason || "Connection attempt failed";
+          const errorMessage = "Connection attempt failed";
           popupManager.showInfo(errorMessage, "error");
           localStorage.setItem("connectionError", errorMessage);
           // Clear session storage

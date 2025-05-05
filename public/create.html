@@ -11,9 +11,20 @@
 <body>
     <div class="page">
         <main class="page-content">
+            <!-- Example Game Navigation -->
+            <div id="exampleNavHelperText"></div>
+            <div id="exampleNavContainer" class="example-nav-container"></div>
+            <div id="exampleNavHelperLink"></div>
             <div class="container">
                 <div class="card">
                     <form id="createForm" class="form">
+                        <div class="form-actions">
+                            <button type="submit" class="button">Create Room</button>
+                            <button type="button" class="button button-icon" id="shareSetup" title="Share Room Setup">
+                                <i class="fas fa-share"></i>
+                            </button>
+                        </div>
+                        <div class="form-divider"></div>
                         <div class="form-group">
                             <label class="form-label" for="roomName">
                                 <span class="info-icon" data-info="roomName">i</span>
@@ -59,18 +70,6 @@
                                 </button>
                             </div>
                         </div>
-
-                        <div class="form-group">
-                            <label class="form-label" for="countdownTime">
-                                <span class="info-icon" data-info="countdownTime">i</span>
-                            </label>
-                            <div class="input-group">
-                                <input type="range" id="countdownTime" class="form-input" 
-                                       min="5" max="35" value="30" required>
-                                <span class="input-value">30</span>
-                            </div>
-                        </div>
-
                         <div class="form-group">
                             <label class="form-label">
                                 <span class="info-icon" data-info="role">i</span>
@@ -85,6 +84,18 @@
                                     <span>Observer</span>
                                 </button>
                                 <input type="hidden" name="role" value="player">
+                            </div>
+                        </div>
+                        <div class="form-divider"></div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="countdownTime">
+                                <span class="info-icon" data-info="countdownTime">i</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="range" id="countdownTime" class="form-input" 
+                                       min="5" max="35" value="30" required>
+                                <span class="input-value">30</span>
                             </div>
                         </div>
 
@@ -316,13 +327,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="form-actions">
-                            <button type="submit" class="button">Create Room</button>
-                            <button type="button" class="button button-icon" id="shareSetup" title="Share Room Setup">
-                                <i class="fas fa-share"></i>
-                            </button>
-                        </div>
                     </form>
                 </div>
             </div>
@@ -338,6 +342,107 @@
     </div>
 
     <script type="module" src="/js/createRoom.js"></script>
+    <script type="module">
+        // Example Game Navigation Logic
+        function getParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        async function setupExampleNav() {
+            const container = document.getElementById('exampleNavContainer');
+            const helperText = document.getElementById('exampleNavHelperText');
+            const helperLink = document.getElementById('exampleNavHelperLink');
+            if (!container) return;
+            let exampleList = [];
+            try {
+                const res = await fetch('/js/examples.json');
+                exampleList = await res.json();
+            } catch (e) {
+                container.innerHTML = '<span style="color:red">Failed to load examples</span>';
+                return;
+            }
+            if (!Array.isArray(exampleList) || exampleList.length === 0) return;
+
+            // Find index from EX param if present
+            const exParam = getParam('EX');
+            let currentIndex = 0;
+            if (exParam) {
+                const idx = exampleList.findIndex(ex => ex.name === exParam);
+                if (idx !== -1) currentIndex = idx;
+            }
+
+            // Show helper text and link if EX is not set
+            if (!exParam) {
+                helperText.innerHTML = '<div style="text-align:center;font-size:0.95em;color:var(--secondary-color);margin-bottom:0.2rem;">Start from some predefined game rules</div>';
+                helperLink.innerHTML = '<div style="text-align:center;margin-bottom:1.2rem;"><a href="/examples" target="_blank" rel="noopener noreferrer" style="font-size:0.92em;color:var(--link-color);text-decoration:underline;">Read more about the example game modes</a></div>';
+            } else {
+                helperText.innerHTML = `<div style="text-align:center;font-size:0.95em;color:var(--secondary-color);margin-bottom:0.2rem;">Applying the game rules from <a href='/examples' target='_blank' rel='noopener noreferrer' style='color:var(--link-color);text-decoration:underline;'>${exParam}</a></div>`;
+                helperLink.innerHTML = '';
+            }
+
+            function render() {
+                container.innerHTML = '';
+                // Left button
+                const leftBtn = document.createElement('button');
+                leftBtn.textContent = '←';
+                leftBtn.className = 'button button-secondary';
+                leftBtn.onclick = () => {
+                    currentIndex = (currentIndex - 1 + exampleList.length) % exampleList.length;
+                    render();
+                };
+                container.appendChild(leftBtn);
+
+                // Main example button
+                const ex = exampleList[currentIndex];
+                const mainBtn = document.createElement('button');
+                mainBtn.className = 'button example-main-btn';
+                mainBtn.style.display = 'flex';
+                mainBtn.style.alignItems = 'center';
+                mainBtn.style.margin = '0 1rem';
+                mainBtn.innerHTML = `<span style="font-size:1.5rem;margin-right:0.5rem;">${ex.emoji}</span> <span>${ex.name}</span>`;
+                // Mark as selected if EX param matches
+                if (exParam && exParam === ex.name) {
+                    mainBtn.classList.add('selected');
+                }
+                mainBtn.onclick = (e) => {
+                    e.preventDefault();
+                    // If this game mode is already selected, clear all params and reload
+                    if (exParam && exParam === ex.name) {
+                        window.location.href = window.location.pathname;
+                        return;
+                    }
+                    // Build params
+                    const params = new URLSearchParams();
+                    // Parse the example's parameters string
+                    ex.parameters.split('&').forEach(pair => {
+                        const [k, v] = pair.split('=');
+                        if (k && v) {
+                            // Map startUrl/endUrl to S/E for consistency
+                            if (k === 'startUrl') params.set('S', v);
+                            else if (k === 'endUrl') params.set('E', v);
+                            else params.set(k, v);
+                        }
+                    });
+                    params.set('EX', ex.name);
+                    window.location.search = '?' + params.toString();
+                };
+                container.appendChild(mainBtn);
+
+                // Right button
+                const rightBtn = document.createElement('button');
+                rightBtn.textContent = '→';
+                rightBtn.className = 'button button-secondary';
+                rightBtn.onclick = () => {
+                    currentIndex = (currentIndex + 1) % exampleList.length;
+                    render();
+                };
+                container.appendChild(rightBtn);
+            }
+            render();
+        }
+        setupExampleNav();
+    </script>
     <script>
         // Handle WebSocket errors
         window.addEventListener('websocket-error', (event) => {
