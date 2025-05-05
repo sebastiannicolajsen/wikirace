@@ -81,15 +81,22 @@ apiRouter.get("/random-url", async (req, res) => {
 apiRouter.post("/url", async (req, res) => {
   const { url } = req.body;
 
-  if (!url || (!url.startsWith("https://en.wikipedia.org/") && !url.startsWith("https://en.m.wikipedia.org/"))) {
-    return res.status(400).json({ error: "Invalid Wikipedia URL" });
+  if (!url) {
+    return res.status(400).json({ error: "URL is required" });
   }
 
   try {
     // Sanitize the URL
     const sanitizedUrl = new URL(url);
-    if (sanitizedUrl.hostname !== 'en.wikipedia.org' && sanitizedUrl.hostname !== 'en.m.wikipedia.org') {
+    
+    // Check if it's a Wikipedia URL
+    if (!sanitizedUrl.hostname.includes('wikipedia.org')) {
       return res.status(400).json({ error: "Invalid Wikipedia URL" });
+    }
+
+    // Check if it's English Wikipedia
+    if (sanitizedUrl.hostname !== 'en.wikipedia.org' && sanitizedUrl.hostname !== 'en.m.wikipedia.org') {
+      return res.status(400).json({ error: "Only English Wikipedia URLs are supported" });
     }
 
     // Convert mobile URL to desktop URL if needed
