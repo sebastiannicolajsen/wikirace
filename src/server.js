@@ -81,19 +81,25 @@ apiRouter.get("/random-url", async (req, res) => {
 apiRouter.post("/url", async (req, res) => {
   const { url } = req.body;
 
-  if (!url || !url.startsWith("https://en.wikipedia.org/")) {
+  if (!url || (!url.startsWith("https://en.wikipedia.org/") && !url.startsWith("https://en.m.wikipedia.org/"))) {
     return res.status(400).json({ error: "Invalid Wikipedia URL" });
   }
 
   try {
     // Sanitize the URL
     const sanitizedUrl = new URL(url);
-    if (sanitizedUrl.hostname !== 'en.wikipedia.org') {
+    if (sanitizedUrl.hostname !== 'en.wikipedia.org' && sanitizedUrl.hostname !== 'en.m.wikipedia.org') {
       return res.status(400).json({ error: "Invalid Wikipedia URL" });
     }
 
+    // Convert mobile URL to desktop URL if needed
+    let cleanUrl = `${sanitizedUrl.origin}${sanitizedUrl.pathname}`;
+    if (sanitizedUrl.hostname === 'en.m.wikipedia.org') {
+      cleanUrl = cleanUrl.replace('en.m.wikipedia.org', 'en.wikipedia.org');
+    }
+
     // Check for non-article content
-    const path = sanitizedUrl.pathname.toLowerCase();
+    const path = cleanUrl.toLowerCase();
     if (path.includes('/file:') || 
         path.includes('/special:') || 
         path.includes('/help:') || 
@@ -147,9 +153,6 @@ apiRouter.post("/url", async (req, res) => {
         path.includes('/species:')) {
       return res.status(400).json({ error: "Invalid Wikipedia article URL. Media files and special pages are not allowed." });
     }
-
-    // Remove any query parameters or fragments
-    const cleanUrl = `${sanitizedUrl.origin}${sanitizedUrl.pathname}`;
 
     // Store the sanitized URL
     const result = await db.storeUrl(cleanUrl);
