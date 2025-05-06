@@ -57,6 +57,20 @@
         -webkit-line-clamp: unset;
       }
 
+      .url-preview.loading {
+        cursor: default;
+      }
+
+      .url-preview.loading::after {
+        content: "⟳";
+        animation: spin 1s linear infinite;
+      }
+
+      .url-preview.loading::before {
+        content: "Loading preview...";
+        color: var(--text-secondary, #666);
+      }
+
       .url-preview::after {
         content: "▼";
         position: absolute;
@@ -183,11 +197,45 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        position: relative;
       }
 
       .qr-code svg {
         width: 150px;
         height: 150px;
+      }
+
+      .qr-code.loading::before {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        border-radius: 8px;
+      }
+
+      .qr-code.loading::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-image: 
+          linear-gradient(90deg, transparent 0%, transparent 50%, #000 50%, #000 100%),
+          linear-gradient(0deg, transparent 0%, transparent 50%, #000 50%, #000 100%);
+        background-size: 20px 20px;
+        opacity: 0.1;
+        border-radius: 8px;
+      }
+
+      @keyframes loading {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
       }
 
       .qr-link-container {
@@ -469,7 +517,7 @@
                       ></span
                     >
                   </div>
-                  <p id="startPreview" class="url-preview"></p>
+                  <p id="startPreview" class="url-preview loading"></p>
                 </div>
                 <div class="url-item">
                   <div class="url-header">
@@ -480,7 +528,7 @@
                       ></span
                     >
                   </div>
-                  <p id="endPreview" class="url-preview"></p>
+                  <p id="endPreview" class="url-preview loading"></p>
                 </div>
               </div>
               <div id="shortestPathInfo" class="shortest-path-info"></div>
@@ -776,15 +824,18 @@
       // Fetch QR code
       async function fetchQRCode() {
         try {
+          const qrCode = document.getElementById('qrCode');
+          qrCode.classList.add('loading'); // Add loading class before fetch
+
           const backgroundColor = rgbToHex(getComputedStyle(document.body).backgroundColor);
           const response = await fetch(`/api/qr/${roomId}?bg=${encodeURIComponent(backgroundColor)}`);
           if (!response.ok) {
             throw new Error('Failed to fetch QR code');
           }
           const data = await response.json();
-          const qrCode = document.getElementById('qrCode');
           if (data.qrCode) {
             qrCode.innerHTML = data.qrCode;
+            qrCode.classList.remove('loading'); // Remove loading class after successful fetch
             qrCode.style.display = 'block';
           } else {
             console.error('No QR code data received');
@@ -875,22 +926,28 @@
             state.startUrl
           );
           const startPreview = document.getElementById("startPreview");
-          startPreview.textContent = state.startPreview || "";
-          startPreview.style.setProperty(
-            "--background-color",
-            getComputedStyle(document.body).backgroundColor
-          );
+          if (state.startPreview) {
+            startPreview.textContent = state.startPreview;
+            startPreview.classList.remove("loading");
+            startPreview.style.setProperty(
+              "--background-color",
+              getComputedStyle(document.body).backgroundColor
+            );
+          }
         }
         if (state.endUrl) {
           document.getElementById("endUrl").textContent = urlToTitle(
             state.endUrl
           );
           const endPreview = document.getElementById("endPreview");
-          endPreview.textContent = state.endPreview || "";
-          endPreview.style.setProperty(
-            "--background-color",
-            getComputedStyle(document.body).backgroundColor
-          );
+          if (state.endPreview) {
+            endPreview.textContent = state.endPreview;
+            endPreview.classList.remove("loading");
+            endPreview.style.setProperty(
+              "--background-color",
+              getComputedStyle(document.body).backgroundColor
+            );
+          }
         }
 
         // Update rules based on game settings
@@ -1028,10 +1085,14 @@
 
       // Set up URL preview click handlers once
       document.getElementById("startPreview").addEventListener("click", function() {
-        this.classList.toggle("expanded");
+        if (!this.classList.contains("loading")) {
+          this.classList.toggle("expanded");
+        }
       });
       document.getElementById("endPreview").addEventListener("click", function() {
-        this.classList.toggle("expanded");
+        if (!this.classList.contains("loading")) {
+          this.classList.toggle("expanded");
+        }
       });
 
       // Handle WebSocket connection

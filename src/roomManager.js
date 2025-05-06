@@ -235,6 +235,25 @@ async function getFirstParagraph(url) {
     }
 }
 
+// Helper function to fetch previews asynchronously
+async function fetchPreviewsAsync(startUrl, endUrl, roomId) {
+  try {
+    const [startPreview, endPreview] = await Promise.all([
+      getFirstParagraph(startUrl),
+      getFirstParagraph(endUrl)
+    ]);
+    
+    const room = rooms.get(roomId);
+    if (room) {
+      room.startPreview = startPreview;
+      room.endPreview = endPreview;
+      broadcastGameState(room);
+    }
+  } catch (error) {
+    console.error(`[Room ${roomId}] Error fetching previews:`, error);
+  }
+}
+
 async function createRoom(
   name,
   startUrl,
@@ -389,25 +408,13 @@ async function createRoom(
     throw new Error('additions_timer must be a number between 5 and 60 seconds');
   }
 
-  // Fetch Wikipedia previews
-  let startPreview = '';
-  let endPreview = '';
-  try {
-    [startPreview, endPreview] = await Promise.all([
-      getFirstParagraph(startUrl),
-      getFirstParagraph(endUrl)
-    ]);
-  } catch (error) {
-    throw new Error("Failed to fetch article previews");
-  }
-
   const object = {
     id,
     name,
     startUrl,
     endUrl,
-    startPreview,
-    endPreview,
+    startPreview: '',  // Initialize as empty string
+    endPreview: '',    // Initialize as empty string
     creator: creatorName,
     status: "lobby",
     createdAt: new Date().toISOString(),
@@ -431,7 +438,7 @@ async function createRoom(
     currentPlayerIndex: 0,
     readyPlayers: new Set(),
     config: mergedConfig,
-    shortestpaths: null, // Initialize as null
+    shortestpaths: null,
   };
 
   rooms.set(id, object);
@@ -440,6 +447,9 @@ async function createRoom(
   // Set initial cleanup timer
   setupRoomCleanupTimer(id);
   console.log(`[Room ${id}] Initial cleanup timer set`);
+
+  // Fetch previews asynchronously
+  fetchPreviewsAsync(startUrl, endUrl, id);
 
   // Fetch shortest paths asynchronously
   fetchShortestPathsAsync(startUrl, endUrl, (result) => {
