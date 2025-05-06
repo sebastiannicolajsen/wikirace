@@ -573,7 +573,7 @@ router.post("/create", async function (req, res) {
           room.shortestpaths = result;
           broadcastGameState(room);
         }
-      }, 1000);
+      }, 500);
     });
   } catch (error) {
     // Format error messages based on their type
