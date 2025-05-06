@@ -85,12 +85,60 @@ const {
   setRoomCleanupTimer,
   clearRoomCleanupTimer,
 } = require("./roomCleanup");
+const { Worker } = require('worker_threads');
+const path = require('path');
 
 // Store all active rooms
 const rooms = new Map();
 
 // Get the maximum number of rooms allowed
 const maxRooms = parseInt(process.env.MAX_ROOMS) || 10;
+
+// Create and initialize the worker
+const worker = new Worker(path.join(__dirname, 'roomWorker.js'));
+
+// Handle worker messages
+worker.on('message', (data) => {
+    const { type, roomId, startPreview, endPreview, result, error } = data;
+    const room = rooms.get(roomId);
+    
+    if (!room) return;
+
+    switch (type) {
+        case 'previewsReady':
+            room.startPreview = startPreview;
+            room.endPreview = endPreview;
+            broadcastGameState(room);
+            break;
+            
+        case 'shortestPathsReady':
+            room.shortestpaths = result;
+            broadcastGameState(room);
+            break;
+            
+        case 'cleanupCheck':
+            if (isRoomEmpty(room)) {
+                deleteRoom(roomId);
+            }
+            break;
+            
+        case 'error':
+            console.error(`[Room ${roomId}] Worker error:`, error);
+            break;
+    }
+});
+
+// Handle worker errors
+worker.on('error', (error) => {
+    console.error('Worker error:', error);
+});
+
+// Handle worker exit
+worker.on('exit', (code) => {
+    if (code !== 0) {
+        console.error(`Worker stopped with exit code ${code}`);
+    }
+});
 
 // Helper function to validate Wikipedia URLs
 function isValidWikipediaUrl(url) {
@@ -554,31 +602,21 @@ router.post("/create", async function (req, res) {
     // Send back both the room ID and game state
     res.json({
       id: roomId,
-      ...getGameState(room),
+      ...getGameState(room)
     });
 
-    setupRoomCleanupTimer(roomId);
-
-    // dirty hack to ensure fast response and do work on main thread after response is sent
-    setTimeout(() => {
-      // Set initial cleanup timer after response is sent
-      
-      console.log(`[Room ${roomId}] Initial cleanup timer set`);
-
-      // Start fetching previews and shortest paths after response is sent, delay to allow player to fetch page
-      fetchPreviewsAsync(startUrl, endUrl, roomId);
-      fetchShortestPathsAsync(startUrl, endUrl, (result) => {
-        const room = rooms.get(roomId);
-        if (room) {
-          room.shortestpaths = result;
-          broadcastGameState(room);
-        }
-      }, 1000);
+    // Send room setup task to worker
+    worker.postMessage({
+      type: 'roomSetup',
+      roomId,
+      startUrl,
+      endUrl
     });
+
   } catch (error) {
     // Format error messages based on their type
     let errorMessage = error.message;
-
+    
     if (errorMessage.includes("Maximum room limit")) {
       errorMessage =
         "Maximum room limit reached. Please try again later or run your own instance.";
