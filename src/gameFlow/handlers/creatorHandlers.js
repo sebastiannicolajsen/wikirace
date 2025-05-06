@@ -53,10 +53,11 @@ function handleStartGame(room, data) {
 function handleKickUser(room, data) {
     const { playerName } = data;
     
-    // Find player type
-    const playerType = room.players.has(playerName) ? 'player' : 'observer';
+    // Check if user exists in either collection
+    const isPlayer = room.players.has(playerName);
+    const isObserver = room.observers.has(playerName);
     
-    // Send kicked message to the player
+    // Send kicked message to the player if they exist in either collection
     const player = room.players.get(playerName) || room.observers.get(playerName);
     if (player && player.ws) {
         player.ws.send(JSON.stringify({
@@ -66,8 +67,15 @@ function handleKickUser(room, data) {
         }));
     }
     
-    // Use connectionHandler to remove the player
-    handlePlayerLeave(room, playerName, playerType);
+    // Remove from players if they are a player
+    if (isPlayer) {
+        handlePlayerLeave(room, playerName, 'player');
+    }
+    
+    // Remove from observers if they are an observer
+    if (isObserver) {
+        handlePlayerLeave(room, playerName, 'observer');
+    }
 }
 
 function handleRestartGame(room, data) {
