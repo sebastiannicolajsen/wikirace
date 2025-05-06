@@ -9,11 +9,11 @@
     },
     "startUrl": {
         "title": "Start URL",
-        "description": "The Wikipedia article where the race will begin. Use the arrows to browse through recent articles."
+        "description": "The Wikipedia article where the race will begin. Use the arrows to browse through recent articles or paste your own (must be a valid, english Wikipedia URL)."
     },
     "endUrl": {
         "title": "End URL",
-        "description": "The Wikipedia article that players need to reach to win the race. Use the arrows to browse through recent articles."
+        "description": "The Wikipedia article that players need to reach to win the race. Use the arrows to browse through recent articles or paste your own (must be a valid, english Wikipedia URL)."
     },
     "countdownTime": {
         "title": "Countdown Time",
