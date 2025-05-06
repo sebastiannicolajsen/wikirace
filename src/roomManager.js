@@ -11,7 +11,7 @@
  *   creator: string,               // Name of the room creator
  *   status: string,                // Current game state (lobby, running, waiting, paused, handout, finished)
  *   createdAt: string,            // ISO timestamp of room creation
- * 
+ *
  *   // Player data
  *   players: Map<string, {        // Map of player name to player data
  *     type: 'player',
@@ -27,32 +27,32 @@
  *     type: 'observer',
  *     ws: WebSocket              // Observer's WebSocket connection
  *   }>,
- * 
+ *
  *   // Game state
  *   winner: string | null,        // Name of the winner
  *   hasWinner: boolean,          // Whether there is a winner
  *   hasAdditions: boolean,       // Whether additions are enabled
  *   nextAddition: string | null, // Next addition to be distributed
- * 
+ *
  *   // Timers and timing
  *   countdownTime: number,        // Duration of countdown in seconds (5-35s)
  *   timerExpired: number | null,  // Remaining time in milliseconds
  *   waitingTimer: number | null,  // Timer ID for waiting state
  *   additionTimer: number | null, // Timer ID for addition phase
  *   additionEndTime: number | null, // When the addition phase ends
- * 
+ *
  *   // Player tracking
  *   missedLinks: Map<string, number>,     // Map of player name to count of missed links
  *   receivedAdditions: Map<string, number>, // Map of player name to count of received additions
  *   waitingForPlayers: boolean,           // Whether waiting for player responses
  *   continueResponses: Set<string>,       // Set of players who have responded to continue
  *   submittedPlayers: Set<string>,        // Set of players who have submitted their links
- * 
+ *
  *   // Addition phase state
  *   eligiblePlayers: string[],           // List of players who can use additions
  *   currentPlayerIndex: number,          // Current player index for round_robin mode
  *   readyPlayers: Set<string>,          // Set of players ready to continue
- * 
+ *
  *   // Room configuration
  *   config: {
  *     continuation: 'automatic' | 'creator' | 'democratic',
@@ -78,9 +78,13 @@ const { getGameState, broadcastGameState } = require("./gameStateManager");
 const express = require("express");
 const router = express.Router();
 const { getWikiContent } = require("./wikiProxy");
-const { JSDOM } = require('jsdom');
-const { fetchShortestPathsAsync } = require('./shortestPathsManager');
-const { roomCleanupTimers, setRoomCleanupTimer, clearRoomCleanupTimer } = require('./roomCleanup');
+const { JSDOM } = require("jsdom");
+const { fetchShortestPathsAsync } = require("./shortestPathsManager");
+const {
+  roomCleanupTimers,
+  setRoomCleanupTimer,
+  clearRoomCleanupTimer,
+} = require("./roomCleanup");
 
 // Store all active rooms
 const rooms = new Map();
@@ -96,8 +100,8 @@ function isValidWikipediaUrl(url) {
 
   // Convert mobile URL to desktop URL for validation
   let cleanUrl = url;
-  if (url.includes('en.m.wikipedia.org')) {
-    cleanUrl = url.replace('en.m.wikipedia.org', 'en.wikipedia.org');
+  if (url.includes("en.m.wikipedia.org")) {
+    cleanUrl = url.replace("en.m.wikipedia.org", "en.wikipedia.org");
   }
 
   // Check if it's a valid Wikipedia URL
@@ -108,131 +112,177 @@ function isValidWikipediaUrl(url) {
   // Check for non-article content
   const path = cleanUrl.toLowerCase();
   const invalidPrefixes = [
-    '/file:', '/special:', '/help:', '/template:', '/category:', '/portal:', '/wikipedia:',
-    '/user:', '/talk:', '/project:', '/module:', '/mediawiki:', '/draft:', '/book:',
-    '/wiktionary:', '/wikibooks:', '/wikiquote:', '/wikisource:', '/wikinews:',
-    '/wikiversity:', '/wikivoyage:', '/wikidata:', '/commons:', '/meta:', '/incubator:',
-    '/outreach:', '/species:', '/media:', '/s:', '/q:', '/n:', '/v:', '/voy:', '/d:',
-    '/c:', '/m:', '/i:', '/o:'
+    "/file:",
+    "/special:",
+    "/help:",
+    "/template:",
+    "/category:",
+    "/portal:",
+    "/wikipedia:",
+    "/user:",
+    "/talk:",
+    "/project:",
+    "/module:",
+    "/mediawiki:",
+    "/draft:",
+    "/book:",
+    "/wiktionary:",
+    "/wikibooks:",
+    "/wikiquote:",
+    "/wikisource:",
+    "/wikinews:",
+    "/wikiversity:",
+    "/wikivoyage:",
+    "/wikidata:",
+    "/commons:",
+    "/meta:",
+    "/incubator:",
+    "/outreach:",
+    "/species:",
+    "/media:",
+    "/s:",
+    "/q:",
+    "/n:",
+    "/v:",
+    "/voy:",
+    "/d:",
+    "/c:",
+    "/m:",
+    "/i:",
+    "/o:",
   ];
 
-  return !invalidPrefixes.some(prefix => path.includes(prefix));
+  return !invalidPrefixes.some((prefix) => path.includes(prefix));
 }
 
 // Helper function to set a cleanup timer for a room
 function setupRoomCleanupTimer(roomId) {
-    setRoomCleanupTimer(roomId, () => {
-        const room = rooms.get(roomId);
-        if (!room) {
-            console.log(`[Room ${roomId}] Room no longer exists, cleaning up timer`);
-            return;
-        }
-        if (isRoomEmpty(room)) {
-            console.log(`[Room ${roomId}] Room is empty, deleting`);
-            deleteRoom(roomId);
-        } else {
-            console.log(`[Room ${roomId}] Room is not empty, resetting timer (playerNames=${Array.from(room.players.keys()).join(', ')})`);
-            setupRoomCleanupTimer(roomId); // Reset the timer
-        }
-    });
+  setRoomCleanupTimer(roomId, () => {
+    const room = rooms.get(roomId);
+    if (!room) {
+      console.log(`[Room ${roomId}] Room no longer exists, cleaning up timer`);
+      return;
+    }
+    if (isRoomEmpty(room)) {
+      console.log(`[Room ${roomId}] Room is empty, deleting`);
+      deleteRoom(roomId);
+    } else {
+      console.log(
+        `[Room ${roomId}] Room is not empty, resetting timer (playerNames=${Array.from(
+          room.players.keys()
+        ).join(", ")})`
+      );
+      setupRoomCleanupTimer(roomId); // Reset the timer
+    }
+  });
 }
 
 // Helper function to extract first paragraph from HTML
 async function getFirstParagraph(url) {
-    try {
-        const html = await getWikiContent(url);
-        const dom = new JSDOM(html);
-        
-        // Try different selectors for the main content
-        const content = dom.window.document.querySelector('#mw-content-text') || 
-                       dom.window.document.querySelector('.mw-parser-output') ||
-                       dom.window.document.querySelector('#content');
-                       
-        if (!content) {
-            return "None Found";
-        }
-        
-        // Find the first non-empty paragraph that's not a reference or navigation
-        const paragraphs = content.querySelectorAll('p');
-        
-        for (const p of paragraphs) {
-            // Skip paragraphs with unwanted classes
-            const unwantedClasses = [
-                'mw-empty-elt',
-                'mw-editsection',
-                'mw-references-wrap',
-                'mw-references',
-                'mw-ext-cite-error',
-                'mw-parser-output',
-                'mw-redirect',
-                'mw-disambig',
-                'mw-search-results',
-                'mw-search-createlink'
-            ];
-            
-            const hasUnwantedClass = unwantedClasses.some(cls => p.classList.contains(cls));
-            if (hasUnwantedClass) continue;
-            
-            // Get the text content and clean it
-            let text = p.textContent.trim();
-            
-            // Skip if empty
-            if (!text) continue;
-            
-            // Skip if it looks like CSS or contains unwanted patterns
-            if (text.includes('{') || 
-                text.includes('}') || 
-                text.includes(';') ||
-                text.includes('IPA:') ||
-                text.includes('mw-') ||
-                text.includes('font-size') ||
-                text.includes('label') ||
-                text.includes('class=') ||
-                text.includes('style=')) {
-                continue;
-            }
-            
-            // Skip paragraphs that are just references or navigation
-            if (text.startsWith('[') || 
-                text.startsWith('Jump to') ||
-                text.startsWith('This article') ||
-                text.startsWith('For other uses') ||
-                text.startsWith('This page') ||
-                text.startsWith('This is a') ||
-                text.startsWith('This list') ||
-                text.startsWith('This section') ||
-                text.startsWith('This template') ||
-                text.startsWith('This category') ||
-                text.startsWith('This portal') ||
-                text.startsWith('This help') ||
-                text.startsWith('This file') ||
-                text.startsWith('This user') ||
-                text.startsWith('This project') ||
-                text.startsWith('This talk') ||
-                text.startsWith('This discussion')) {
-                continue;
-            }
-            
-            // Remove any remaining HTML-like content
-            text = text.replace(/<[^>]*>/g, '');
-            
-            // Remove any remaining CSS-like content
-            text = text.replace(/\{[^}]*\}/g, '');
-            
-            // Clean up any remaining artifacts
-            text = text.replace(/\s+/g, ' ').trim();
-            
-            // Only return if we have meaningful content
-            if (text.length > 10) {
-                return text;
-            }
-        }
-        
-        return "None Found";
-    } catch (error) {
-        console.error(`[getFirstParagraph] Error fetching Wikipedia preview for URL ${url}:`, error);
-        return "None Found";
+  try {
+    const html = await getWikiContent(url);
+    const dom = new JSDOM(html);
+
+    // Try different selectors for the main content
+    const content =
+      dom.window.document.querySelector("#mw-content-text") ||
+      dom.window.document.querySelector(".mw-parser-output") ||
+      dom.window.document.querySelector("#content");
+
+    if (!content) {
+      return "None Found";
     }
+
+    // Find the first non-empty paragraph that's not a reference or navigation
+    const paragraphs = content.querySelectorAll("p");
+
+    for (const p of paragraphs) {
+      // Skip paragraphs with unwanted classes
+      const unwantedClasses = [
+        "mw-empty-elt",
+        "mw-editsection",
+        "mw-references-wrap",
+        "mw-references",
+        "mw-ext-cite-error",
+        "mw-parser-output",
+        "mw-redirect",
+        "mw-disambig",
+        "mw-search-results",
+        "mw-search-createlink",
+      ];
+
+      const hasUnwantedClass = unwantedClasses.some((cls) =>
+        p.classList.contains(cls)
+      );
+      if (hasUnwantedClass) continue;
+
+      // Get the text content and clean it
+      let text = p.textContent.trim();
+
+      // Skip if empty
+      if (!text) continue;
+
+      // Skip if it looks like CSS or contains unwanted patterns
+      if (
+        text.includes("{") ||
+        text.includes("}") ||
+        text.includes(";") ||
+        text.includes("IPA:") ||
+        text.includes("mw-") ||
+        text.includes("font-size") ||
+        text.includes("label") ||
+        text.includes("class=") ||
+        text.includes("style=")
+      ) {
+        continue;
+      }
+
+      // Skip paragraphs that are just references or navigation
+      if (
+        text.startsWith("[") ||
+        text.startsWith("Jump to") ||
+        text.startsWith("This article") ||
+        text.startsWith("For other uses") ||
+        text.startsWith("This page") ||
+        text.startsWith("This is a") ||
+        text.startsWith("This list") ||
+        text.startsWith("This section") ||
+        text.startsWith("This template") ||
+        text.startsWith("This category") ||
+        text.startsWith("This portal") ||
+        text.startsWith("This help") ||
+        text.startsWith("This file") ||
+        text.startsWith("This user") ||
+        text.startsWith("This project") ||
+        text.startsWith("This talk") ||
+        text.startsWith("This discussion")
+      ) {
+        continue;
+      }
+
+      // Remove any remaining HTML-like content
+      text = text.replace(/<[^>]*>/g, "");
+
+      // Remove any remaining CSS-like content
+      text = text.replace(/\{[^}]*\}/g, "");
+
+      // Clean up any remaining artifacts
+      text = text.replace(/\s+/g, " ").trim();
+
+      // Only return if we have meaningful content
+      if (text.length > 10) {
+        return text;
+      }
+    }
+
+    return "None Found";
+  } catch (error) {
+    console.error(
+      `[getFirstParagraph] Error fetching Wikipedia preview for URL ${url}:`,
+      error
+    );
+    return "None Found";
+  }
 }
 
 // Helper function to fetch previews asynchronously
@@ -240,9 +290,9 @@ async function fetchPreviewsAsync(startUrl, endUrl, roomId) {
   try {
     const [startPreview, endPreview] = await Promise.all([
       getFirstParagraph(startUrl),
-      getFirstParagraph(endUrl)
+      getFirstParagraph(endUrl),
     ]);
-    
+
     const room = rooms.get(roomId);
     if (room) {
       room.startPreview = startPreview;
@@ -256,10 +306,10 @@ async function fetchPreviewsAsync(startUrl, endUrl, roomId) {
 
 // Helper function to generate a random room ID
 function generateRoomId() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let id;
   do {
-    id = '';
+    id = "";
     for (let i = 0; i < 4; i++) {
       id += chars.charAt(Math.floor(Math.random() * chars.length));
     }
@@ -373,7 +423,9 @@ async function createRoom(
   // Generate a unique room ID
   const id = generateRoomId();
 
-  console.log(`[Room ${id}] Creating new room: name="${name}", creator="${creatorName}"`);
+  console.log(
+    `[Room ${id}] Creating new room: name="${name}", creator="${creatorName}"`
+  );
 
   // Default configuration
   const defaultConfig = {
@@ -386,7 +438,7 @@ async function createRoom(
     additions_application: "once",
     additions_callType: "free_for_all",
     additions_timer: 30,
-    additions_multiplePerRound: false
+    additions_multiplePerRound: false,
   };
 
   // Merge provided config with defaults
@@ -406,8 +458,14 @@ async function createRoom(
   }
 
   // Validate additions_timer
-  if (typeof mergedConfig.additions_timer !== 'number' || mergedConfig.additions_timer < 5 || mergedConfig.additions_timer > 60) {
-    throw new Error('additions_timer must be a number between 5 and 60 seconds');
+  if (
+    typeof mergedConfig.additions_timer !== "number" ||
+    mergedConfig.additions_timer < 5 ||
+    mergedConfig.additions_timer > 60
+  ) {
+    throw new Error(
+      "additions_timer must be a number between 5 and 60 seconds"
+    );
   }
 
   const object = {
@@ -415,8 +473,8 @@ async function createRoom(
     name,
     startUrl,
     endUrl,
-    startPreview: '',  // Initialize as empty string
-    endPreview: '',    // Initialize as empty string
+    startPreview: "", // Initialize as empty string
+    endPreview: "", // Initialize as empty string
     creator: creatorName,
     status: "lobby",
     createdAt: new Date().toISOString(),
@@ -444,8 +502,11 @@ async function createRoom(
   };
 
   rooms.set(id, object);
-  console.log(`[Room ${id}] Room created and added to rooms map. Current rooms:`, Array.from(rooms.keys()));
-  
+  console.log(
+    `[Room ${id}] Room created and added to rooms map. Current rooms:`,
+    Array.from(rooms.keys())
+  );
+
   return id;
 }
 
@@ -493,31 +554,35 @@ router.post("/create", async function (req, res) {
     // Send back both the room ID and game state
     res.json({
       id: roomId,
-      ...getGameState(room)
+      ...getGameState(room),
     });
 
-    // Set initial cleanup timer after response is sent
-    setupRoomCleanupTimer(roomId);
-    console.log(`[Room ${roomId}] Initial cleanup timer set`);
+    // dirty hack to ensure fast response and do work on main thread after response is sent
+    setTimeout(() => {
+      // Set initial cleanup timer after response is sent
+      setupRoomCleanupTimer(roomId);
+      console.log(`[Room ${roomId}] Initial cleanup timer set`);
 
-    // Start fetching previews and shortest paths after response is sent
-    fetchPreviewsAsync(startUrl, endUrl, roomId);
-    fetchShortestPathsAsync(startUrl, endUrl, (result) => {
-      const room = rooms.get(roomId);
-      if (room) {
-        room.shortestpaths = result;
-        broadcastGameState(room);
-      }
+      // Start fetching previews and shortest paths after response is sent
+      fetchPreviewsAsync(startUrl, endUrl, roomId);
+      fetchShortestPathsAsync(startUrl, endUrl, (result) => {
+        const room = rooms.get(roomId);
+        if (room) {
+          room.shortestpaths = result;
+          broadcastGameState(room);
+        }
+      },0);
     });
-
   } catch (error) {
     // Format error messages based on their type
     let errorMessage = error.message;
-    
+
     if (errorMessage.includes("Maximum room limit")) {
-      errorMessage = "Maximum room limit reached. Please try again later or run your own instance.";
+      errorMessage =
+        "Maximum room limit reached. Please try again later or run your own instance.";
     } else if (errorMessage.includes("Failed to fetch")) {
-      errorMessage = "Failed to fetch Wikipedia article previews. Please try again.";
+      errorMessage =
+        "Failed to fetch Wikipedia article previews. Please try again.";
     } else if (errorMessage.includes("Invalid")) {
       errorMessage = "Invalid room settings. Please check your configuration.";
     } else if (errorMessage.includes("Failed to create")) {
@@ -535,15 +600,17 @@ function getRoom(roomId) {
 
 // Delete a room
 function deleteRoom(roomId) {
-    const room = rooms.get(roomId);
-    if (room) {
-        console.log(`[Room ${roomId}] Deleting room: name="${room.name}", creator="${room.creator}"`);
-        rooms.delete(roomId);
-        if (roomCleanupTimers.has(roomId)) {
-            clearTimeout(roomCleanupTimers.get(roomId));
-            roomCleanupTimers.delete(roomId);
-        }
+  const room = rooms.get(roomId);
+  if (room) {
+    console.log(
+      `[Room ${roomId}] Deleting room: name="${room.name}", creator="${room.creator}"`
+    );
+    rooms.delete(roomId);
+    if (roomCleanupTimers.has(roomId)) {
+      clearTimeout(roomCleanupTimers.get(roomId));
+      roomCleanupTimers.delete(roomId);
     }
+  }
 }
 
 module.exports = {
@@ -555,5 +622,5 @@ module.exports = {
   isRoomEmpty,
   setRoomCleanupTimer,
   clearRoomCleanupTimer,
-  router
+  router,
 };
