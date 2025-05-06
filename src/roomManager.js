@@ -254,6 +254,19 @@ async function fetchPreviewsAsync(startUrl, endUrl, roomId) {
   }
 }
 
+// Helper function to generate a random room ID
+function generateRoomId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let id;
+  do {
+    id = '';
+    for (let i = 0; i < 4; i++) {
+      id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+  } while (rooms.has(id));
+  return id;
+}
+
 async function createRoom(
   name,
   startUrl,
@@ -357,19 +370,8 @@ async function createRoom(
     throw new Error("Invalid multiple per round setting");
   }
 
-  // Generate a unique room ID with retry mechanism
-  let id;
-  let attempts = 0;
-  const maxAttempts = 10;
-  
-  do {
-    id = uuidv4().substring(0, 4).toUpperCase();
-    attempts++;
-    
-    if (attempts > maxAttempts) {
-      throw new Error("Failed to create room");
-    }
-  } while (rooms.has(id));
+  // Generate a unique room ID
+  const id = generateRoomId();
 
   console.log(`[Room ${id}] Creating new room: name="${name}", creator="${creatorName}"`);
 
@@ -444,10 +446,6 @@ async function createRoom(
   rooms.set(id, object);
   console.log(`[Room ${id}] Room created and added to rooms map. Current rooms:`, Array.from(rooms.keys()));
   
-  // Set initial cleanup timer
-  setupRoomCleanupTimer(id);
-  console.log(`[Room ${id}] Initial cleanup timer set`);
-
   return id;
 }
 
@@ -497,6 +495,10 @@ router.post("/create", async function (req, res) {
       id: roomId,
       ...getGameState(room)
     });
+
+    // Set initial cleanup timer after response is sent
+    setupRoomCleanupTimer(roomId);
+    console.log(`[Room ${roomId}] Initial cleanup timer set`);
 
     // Start fetching previews and shortest paths after response is sent
     fetchPreviewsAsync(startUrl, endUrl, roomId);

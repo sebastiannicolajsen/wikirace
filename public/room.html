@@ -61,17 +61,43 @@
         cursor: default;
       }
 
-      .url-preview.loading::after {
-        content: "⟳";
+      .url-preview.loading::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.2em;
+        width: 1em;
+        height: 1em;
+        border: 2px solid var(--border-color);
+        border-top-color: var(--text-secondary, #666);
+        border-radius: 50%;
         animation: spin 1s linear infinite;
+        margin-right: 0.5rem;
+        vertical-align: middle;
+        display: inline-block;
+        box-sizing: border-box;
+        transform: none;
+        background: none;
+        padding: 0;
+        font-size: 1em;
+        line-height: 1;
+        aspect-ratio: 1;
       }
 
-      .url-preview.loading::before {
+      .url-preview.loading::after {
         content: "Loading preview...";
         color: var(--text-secondary, #666);
+        margin-left: 1.5em;
+        position: static;
+        background: none;
+        padding: 0;
+        font-size: inherit;
+        line-height: inherit;
+        height: auto;
+        display: inline;
       }
 
-      .url-preview::after {
+      .url-preview:not(.loading)::after {
         content: "▼";
         position: absolute;
         left: 0;
@@ -85,8 +111,17 @@
         align-items: center;
       }
 
-      .url-preview.expanded::after {
+      .url-preview.expanded:not(.loading)::after {
         content: "▲";
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
 
       @media (max-width: 768px) {
@@ -100,6 +135,36 @@
         padding: 1rem;
         background: var(--background-color, #ffffff);
         border-radius: 0.5rem;
+        min-height: 100px;
+        position: relative;
+      }
+
+      .rules-section.loading::before {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        border-radius: 0.5rem;
+        top: 0;
+        left: 0;
+      }
+
+      .rules-section.loading::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-image: 
+          linear-gradient(90deg, transparent 0%, transparent 50%, #000 50%, #000 100%),
+          linear-gradient(0deg, transparent 0%, transparent 50%, #000 50%, #000 100%);
+        background-size: 20px 20px;
+        opacity: 0.1;
+        border-radius: 0.5rem;
+        top: 0;
+        left: 0;
       }
 
       .rules-subtitle {
@@ -466,12 +531,6 @@
         margin-right: 0.5rem;
       }
 
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
       @media (max-width: 768px) {
         .popup {
           width: 95%;
@@ -667,10 +726,15 @@
 
       // Function to update rules based on game settings
       function updateRules(settings) {
-        if (!gameRules) return;
+        if (!gameRules) {
+          document.querySelector('.rules-section').classList.add('loading');
+          return;
+        }
 
         const rulesList = document.getElementById('gameRules');
+        const rulesSection = document.querySelector('.rules-section');
         rulesList.innerHTML = '';
+        rulesSection.classList.remove('loading');
 
         // Add base rules
         gameRules.baseRules.forEach(rule => {
