@@ -448,18 +448,6 @@ async function createRoom(
   setupRoomCleanupTimer(id);
   console.log(`[Room ${id}] Initial cleanup timer set`);
 
-  // Fetch previews asynchronously
-  fetchPreviewsAsync(startUrl, endUrl, id);
-
-  // Fetch shortest paths asynchronously
-  fetchShortestPathsAsync(startUrl, endUrl, (result) => {
-    const room = rooms.get(id);
-    if (room) {
-      room.shortestpaths = result;
-      broadcastGameState(room);
-    }
-  });
-
   return id;
 }
 
@@ -509,6 +497,17 @@ router.post("/create", async function (req, res) {
       id: roomId,
       ...getGameState(room)
     });
+
+    // Start fetching previews and shortest paths after response is sent
+    fetchPreviewsAsync(startUrl, endUrl, roomId);
+    fetchShortestPathsAsync(startUrl, endUrl, (result) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        room.shortestpaths = result;
+        broadcastGameState(room);
+      }
+    });
+
   } catch (error) {
     // Format error messages based on their type
     let errorMessage = error.message;
