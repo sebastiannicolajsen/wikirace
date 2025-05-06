@@ -1,6 +1,6 @@
 import { generateRoomName, generatePlayerName } from './nameGenerator.js';
 import popupManager from './popup.js';
-import { urlToTitle, titleToUrl, isValidWikiUrl } from './wikiHelper.js';
+import { urlToTitle, isValidWikiUrl } from './wikiHelper.js';
 
 class CreateRoomManager {
     constructor() {
@@ -1257,26 +1257,26 @@ class CreateRoomManager {
         settingsString += formData.config.chooser === 'random' ? 'R' : 'P';
         
         // Additions
-        if (formData.config.additions.bomb) {
+        if (formData.config.additions.bomb !== undefined) {
             settingsString += 'B' + formData.config.additions.bomb;
         } else {
             settingsString += 'BN';
         }
         
-        if (formData.config.additions.return) {
+        if (formData.config.additions.return !== undefined) {
             settingsString += 'R' + formData.config.additions.return;
         } else {
             settingsString += 'RN';
         }
         
-        if (formData.config.additions.swap) {
+        if (formData.config.additions.swap !== undefined) {
             settingsString += 'S' + formData.config.additions.swap;
         } else {
             settingsString += 'SN';
         }
         
         // Additional settings if any additions are enabled
-        if (Object.values(formData.config.additions).some(count => count > 0)) {
+        if (Object.keys(formData.config.additions).length > 0) {
             // Card use style (F or R)
             settingsString += formData.config.additions_callType === 'free_for_all' ? 'F' : 'R';
             

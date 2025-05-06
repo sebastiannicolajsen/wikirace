@@ -178,8 +178,29 @@ function getGameState(room) {
             currentPlayerIndex: room.currentPlayerIndex || 0,
             additionEndTime: room.additionEndTime || null,
             readyPlayers: Array.from(room.readyToContinue || new Set())
-        } : null
+        } : null,
+
+        // Shortest paths data
+        shortestpaths: process.env.PATH_API ? (room.shortestpaths === "not-found" ? "not-found" : 
+            (room.shortestpaths ? {
+                length: room.shortestpaths.length,
+                paths: room.shortestpaths.paths,
+                example: room.shortestpaths.example
+            } : null)) : "disabled"
     };
+
+    // Add ranking when game is finished
+    if (room.status === 'finished' && room.ranking) {
+        state.ranking = room.ranking.map(player => ({
+            name: player.name,
+            type: player.type,
+            path: player.path || [],
+            additions: player.additions || {},
+            shortestPathToEnd: player.shortestPathToEnd,
+            surrendered: player.surrendered || false,
+            surrenderTime: player.surrenderTime
+        }));
+    }
 
     return state;
 }
@@ -189,19 +210,30 @@ function getGameState(room) {
  * @param {Object} room - The room object containing game state
  */
 function broadcastGameState(room) {
-    const gameState = getGameState(room);
-    const message = {
-        type: 'game_state',
-        state: gameState
-    };
+    const baseGameState = getGameState(room);
     
     // Broadcast to players using message queue
     room.players.forEach((player, playerName) => {
         if (player.ws) {
             try {
+                // For players, only include example if game is finished
+                const playerState = {
+                    ...baseGameState,
+                    shortestpaths: baseGameState.shortestpaths === "disabled" ? "disabled" : 
+                        (baseGameState.shortestpaths === "not-found" ? "not-found" :
+                        (baseGameState.shortestpaths ? {
+                            length: baseGameState.shortestpaths.length,
+                            paths: baseGameState.shortestpaths.paths,
+                            example: room.status === 'finished' ? baseGameState.shortestpaths.example : undefined
+                        } : null))
+                };
+                
                 sendMessageWithQueue(
                     playerName,
-                    message,
+                    {
+                        type: 'game_state',
+                        state: playerState
+                    },
                     player.ws
                 );
             } catch (error) {
@@ -214,9 +246,13 @@ function broadcastGameState(room) {
     room.observers.forEach((observer, observerName) => {
         if (observer.ws) {
             try {
+                // For observers, always include the example
                 sendMessageWithQueue(
                     observerName,
-                    message,
+                    {
+                        type: 'game_state',
+                        state: baseGameState
+                    },
                     observer.ws
                 );
             } catch (error) {

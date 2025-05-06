@@ -1,6 +1,7 @@
 const { broadcastGameState } = require('./gameStateManager');
 const { sendQueuedMessages, messageQueues } = require('./messageQueue');
-const { getRoom, isRoomEmpty, deleteRoom, roomCleanupTimers, setRoomCleanupTimer, clearRoomCleanupTimer } = require('./roomManager');
+const { getRoom, isRoomEmpty, deleteRoom } = require('./roomManager');
+const { roomCleanupTimers, setRoomCleanupTimer, clearRoomCleanupTimer } = require('./roomCleanup');
 const { sendMessageWithQueue } = require('./messageQueue');
 const { GameStates } = require('./gameFlow/gameStates');
 

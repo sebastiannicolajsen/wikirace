@@ -381,6 +381,49 @@
         background-color: var(--border-color, #ddd);
       }
 
+      .shortest-path-info {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+        padding: 0;
+        font-size: 0.9em;
+        color: var(--text-secondary, #666);
+        text-align: center;
+        font-weight: bold;
+      }
+
+      .shortest-path-info .gold {
+        color: #d4c4a3;
+        font-weight: bold;
+      }
+
+      .shortest-path-info .faded {
+        color: var(--text-secondary, #666);
+        font-weight: bold;
+      }
+
+      .shortest-path-info .spinner {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        border: 2px solid var(--border-color);
+        border-top-color: var(--text-secondary, #666);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 0.5rem;
+        vertical-align: middle;
+      }
+
+      .shortest-path-info .error-icon {
+        color: var(--error-color, #ff4444);
+        margin-right: 0.5rem;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
       @media (max-width: 768px) {
         .popup {
           width: 95%;
@@ -440,6 +483,7 @@
                   <p id="endPreview" class="url-preview"></p>
                 </div>
               </div>
+              <div id="shortestPathInfo" class="shortest-path-info"></div>
             </div>
 
             <div class="players-section">
@@ -787,8 +831,8 @@
 
       websocketManager.onStateUpdate((state) => {
         console.log("Received game state:", state);
-        currentState = state; // Update the stored state
-        hasInitialState = true; // Mark that we have received initial state
+        currentState = state;
+        hasInitialState = true;
 
         // If we're connected and have initial state, fetch QR code
         if (isConnected && hasInitialState) {
@@ -954,6 +998,29 @@
           button.title = hasEnoughPlayers ? "Start Game" : "Need at least 2 players to start";
           button.classList.toggle('disabled', !hasEnoughPlayers);
         });
+
+        // Update shortest path info
+        const shortestPathInfo = document.getElementById('shortestPathInfo');
+        console.log('Shortest paths state:', state.shortestpaths, 'Type:', typeof state.shortestpaths);
+        
+        if (state.shortestpaths === "disabled") {
+          console.log('Hiding shortest paths info');
+          shortestPathInfo.style.display = 'none';
+        } else {
+          console.log('Showing shortest paths info');
+          shortestPathInfo.style.display = 'block';
+          if (state.shortestpaths === null || state.shortestpaths === undefined) {
+            console.log('Showing loading state');
+            shortestPathInfo.innerHTML = 'Calculating minimum steps... <span class="spinner"></span>';
+          } else if (state.shortestpaths === "not-found") {
+            console.log('Showing not found state');
+            shortestPathInfo.innerHTML = '<span class="error-icon">⚠️</span> Couldn\'t calculate the distance between the pages.';
+          } else if (typeof state.shortestpaths === 'object' && state.shortestpaths !== null) {
+            console.log('Showing path info');
+            const paths = state.shortestpaths.paths;
+            shortestPathInfo.innerHTML = `Can be completed in <span class="gold">${state.shortestpaths.length}</span> clicks${paths > 1 ? `, through <span class="gold">${paths}</span> different paths` : ''}.`;
+          }
+        }
       });
 
       // Connect to WebSocket

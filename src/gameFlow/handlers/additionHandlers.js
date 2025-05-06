@@ -259,6 +259,14 @@ function handleUseAdditionResponse(room, data) {
             break;
     }
 
+    // Increment receivedAdditions counter for the target player
+    if (!room.receivedAdditions) {
+        room.receivedAdditions = new Map();
+    }
+    const currentCount = room.receivedAdditions.get(selection.target) || 0;
+    room.receivedAdditions.set(selection.target, currentCount + 1);
+    if (DEBUG) console.log(`[additionHandlers] Incremented receivedAdditions for ${selection.target} to ${currentCount + 1}`);
+
     // Decrease the sending player's addition count
     player.additions[selection.type]--;
 

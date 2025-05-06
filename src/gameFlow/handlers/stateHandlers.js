@@ -203,9 +203,10 @@ function handleLobbyState(room, data) {
         room.surrenderedPlayers = new Map();
     }
 
-    // Reset all player paths to empty
+    // Reset all player paths to empty and clear shortest path results
     for (const player of room.players.values()) {
         player.path = [];
+        player.shortestPathToEnd = null;
     }
 
     return GameStates.LOBBY;
@@ -236,6 +237,7 @@ function handleRunningState(room, data) {
   room.usedAdditions = new Set();
   room.nextAddition = null;
   room.pendingRandomUrls = null;  // Clear pending random URLs
+  room.submissionOrder = [];  // Reset submission order
 
   // Initialize player paths with start URL when transitioning from LOBBY
   if (room.status === GameStates.LOBBY) {
@@ -487,6 +489,163 @@ function handleFinishedState(room, data) {
   room.eligiblePlayers = null;
   room.readyPlayers = null;
 
+  // Initialize ranking array
+  room.ranking = [];
+  
+  // First, add the winner to the ranking
+  const winner = room.players.get(room.winner);
+  if (winner) {
+    room.ranking.push({
+      ...winner,
+      name: room.winner
+    });
+  }
+
+  // Track players who reached the end URL (excluding winner)
+  const playersAtEnd = [];
+  // Track players who need shortest path calculation
+  const playersNeedingShortestPath = [];
+  // Track surrendered players
+  const surrenderedPlayers = room.surrenderedPlayers ? 
+    Array.from(room.surrenderedPlayers.entries())
+      .map(([name, data]) => ({
+        name,
+        type: 'player',
+        path: data.path,
+        additions: {},
+        surrendered: true,
+        surrenderTime: data.surrenderTime,
+        finalUrl: data.finalUrl
+      }))
+      .sort((a, b) => a.surrenderTime - b.surrenderTime) : [];
+
+  // Categorize players
+  for (const [playerName, player] of room.players) {
+    if (playerName === room.winner) continue; // Skip winner as they're already added
+
+    if (player.path && player.path.length > 0) {
+      const lastPathEntry = player.path[player.path.length - 1];
+      if (lastPathEntry.url === room.endUrl) {
+        playersAtEnd.push({
+          ...player,
+          name: playerName
+        });
+      } else {
+        playersNeedingShortestPath.push({
+          ...player,
+          name: playerName
+        });
+      }
+    }
+  }
+
+  // Sort players who reached the end according to submission order
+  playersAtEnd.sort((a, b) => {
+    const aIndex = room.submissionOrder.indexOf(a.name);
+    const bIndex = room.submissionOrder.indexOf(b.name);
+    return aIndex - bIndex;
+  });
+
+  // Add players who reached the end to ranking
+  playersAtEnd.forEach(player => {
+    room.ranking.push(player);
+  });
+
+  // Function to finalize ranking once all shortest paths are received
+  const finalizeRanking = () => {
+    // Sort players needing shortest path by path length and submission order
+    const sortedPlayers = playersNeedingShortestPath
+      .map(player => {
+        const response = player.shortestPathToEnd;
+        return {
+          player,
+          pathLength: response === "not-found" || response === "disabled" ? Infinity : response.length,
+          submissionIndex: room.submissionOrder.indexOf(player.name)
+        };
+      })
+      .sort((a, b) => {
+        if (a.pathLength === b.pathLength) {
+          return a.submissionIndex - b.submissionIndex;
+        }
+        return a.pathLength - b.pathLength;
+      });
+
+    // Add sorted players to ranking
+    sortedPlayers.forEach(({ player }) => {
+      room.ranking.push(player);
+    });
+
+    // Add surrendered players at the end
+    room.ranking.push(...surrenderedPlayers);
+
+    // Broadcast final state with complete ranking
+    broadcastGameState(room);
+  };
+
+  // Function to calculate shortest paths for surrendered players
+  const calculateSurrenderedPaths = (callback) => {
+    if (!process.env.PATH_API || surrenderedPlayers.length === 0) {
+      callback();
+      return;
+    }
+
+    let surrenderedPendingResponses = surrenderedPlayers.length;
+    surrenderedPlayers.forEach(player => {
+      const lastPathEntry = player.path[player.path.length - 1];
+      const { fetchShortestPathsAsync } = require('../../shortestPathsManager');
+      fetchShortestPathsAsync(lastPathEntry.url, room.endUrl, (result) => {
+        player.shortestPathToEnd = result;
+        surrenderedPendingResponses--;
+        
+        if (surrenderedPendingResponses === 0) {
+          callback();
+        }
+      });
+    });
+  };
+
+  // If PATH_API is not set, just add remaining players by submission order
+  if (!process.env.PATH_API) {
+    // Sort remaining players by submission order
+    playersNeedingShortestPath.sort((a, b) => {
+      const aIndex = room.submissionOrder.indexOf(a.name);
+      const bIndex = room.submissionOrder.indexOf(b.name);
+      return aIndex - bIndex;
+    });
+
+    // Add remaining players to ranking
+    playersNeedingShortestPath.forEach(player => {
+      room.ranking.push(player);
+    });
+
+    // Add surrendered players at the end
+    room.ranking.push(...surrenderedPlayers);
+
+    broadcastGameState(room);
+    return GameStates.FINISHED;
+  }
+
+  // If no players need shortest path calculation, calculate for surrendered players
+  if (playersNeedingShortestPath.length === 0) {
+    calculateSurrenderedPaths(finalizeRanking);
+    return GameStates.FINISHED;
+  }
+
+  // Fetch shortest paths for remaining players
+  let pendingResponses = playersNeedingShortestPath.length;
+  playersNeedingShortestPath.forEach(player => {
+    const lastPathEntry = player.path[player.path.length - 1];
+    const { fetchShortestPathsAsync } = require('../../shortestPathsManager');
+    fetchShortestPathsAsync(lastPathEntry.url, room.endUrl, (result) => {
+      player.shortestPathToEnd = result;
+      pendingResponses--;
+      
+      if (pendingResponses === 0) {
+        calculateSurrenderedPaths(finalizeRanking);
+      }
+    });
+  });
+
   if (DEBUG) console.log(`[stateHandlers] Completed handleFinishedState for room ${room.id}, winner: ${room.winner}`);
   
   return GameStates.FINISHED;
@@ -514,7 +673,7 @@ function handleWaitingTimerExpired(room, data) {
 
   // Check if any player has reached the goal first
   if (checkForWinner(room)) {
-    handleStateChange(room, GameStates.FINISHED, data, true);
+    handleStateChange(room, GameStates.FINISHED, data);
     return;
   }
 

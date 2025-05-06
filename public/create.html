@@ -12,11 +12,13 @@
     <div class="page">
         <main class="page-content">
             <!-- Example Game Navigation -->
-            <div id="exampleNavHelperText"></div>
-            <div id="exampleNavContainer" class="example-nav-container"></div>
-            <div id="exampleNavHelperLink"></div>
+            <div id="exampleNavFadeGroup" style="position:fixed;top:0;left:0;width:100%;z-index:1;padding-top:0.7rem;">
+                <div id="exampleNavHelperText"></div>
+                <div id="exampleNavContainer" class="example-nav-container"></div>
+                <div id="exampleNavHelperLink"></div>
+            </div>
             <div class="container">
-                <div class="card">
+                <div class="card" style="position:relative;z-index:2;margin-top:2.2rem;">
                     <form id="createForm" class="form">
                         <div class="form-actions">
                             <button type="submit" class="button">Create Room</button>
@@ -101,6 +103,23 @@
 
                         <div class="form-group">
                             <label class="form-label">
+                                <span class="info-icon" data-info="chooser">i</span>
+                            </label>
+                            <div class="icon-button-group">
+                                <button type="button" class="icon-button active" data-value="random">
+                                    <i class="fas fa-question"></i>
+                                    <span>Random</span>
+                                </button>
+                                <button type="button" class="icon-button" data-value="player">
+                                    <i class="fas fa-user"></i>
+                                    <span>First player to choose</span>
+                                </button>
+                                <input type="hidden" name="chooser" value="random">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
                                 <span class="info-icon" data-info="continuation">i</span>
                             </label>
                             <div class="icon-button-group">
@@ -117,23 +136,6 @@
                                     <span>All</span>
                                 </button>
                                 <input type="hidden" name="continuation" value="automatic">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">
-                                <span class="info-icon" data-info="chooser">i</span>
-                            </label>
-                            <div class="icon-button-group">
-                                <button type="button" class="icon-button active" data-value="random">
-                                    <i class="fas fa-question"></i>
-                                    <span>Random</span>
-                                </button>
-                                <button type="button" class="icon-button" data-value="player">
-                                    <i class="fas fa-user"></i>
-                                    <span>First player to choose</span>
-                                </button>
-                                <input type="hidden" name="chooser" value="random">
                             </div>
                         </div>
 
@@ -349,12 +351,17 @@
             return urlParams.get(name);
         }
 
+        let exampleList = [];
+        let currentIndex = 0;
+        let render = null;
+        let exParam = getParam('EX');
+        let navButtonsShouldFade = false;
+        
         async function setupExampleNav() {
             const container = document.getElementById('exampleNavContainer');
             const helperText = document.getElementById('exampleNavHelperText');
             const helperLink = document.getElementById('exampleNavHelperLink');
             if (!container) return;
-            let exampleList = [];
             try {
                 const res = await fetch('/js/examples.json');
                 exampleList = await res.json();
@@ -365,8 +372,8 @@
             if (!Array.isArray(exampleList) || exampleList.length === 0) return;
 
             // Find index from EX param if present
-            const exParam = getParam('EX');
-            let currentIndex = 0;
+            exParam = getParam('EX');
+            currentIndex = 0;
             if (exParam) {
                 const idx = exampleList.findIndex(ex => ex.name === exParam);
                 if (idx !== -1) currentIndex = idx;
@@ -381,12 +388,13 @@
                 helperLink.innerHTML = '';
             }
 
-            function render() {
+            render = function() {
                 container.innerHTML = '';
                 // Left button
                 const leftBtn = document.createElement('button');
                 leftBtn.textContent = '←';
                 leftBtn.className = 'button button-secondary';
+                if (navButtonsShouldFade) leftBtn.classList.add('fade-out');
                 leftBtn.onclick = () => {
                     currentIndex = (currentIndex - 1 + exampleList.length) % exampleList.length;
                     render();
@@ -399,26 +407,21 @@
                 mainBtn.className = 'button example-main-btn';
                 mainBtn.style.display = 'flex';
                 mainBtn.style.alignItems = 'center';
-                mainBtn.style.margin = '0 1rem';
+                mainBtn.style.margin = '0 0 0 1rem';
                 mainBtn.innerHTML = `<span style="font-size:1.5rem;margin-right:0.5rem;">${ex.emoji}</span> <span>${ex.name}</span>`;
-                // Mark as selected if EX param matches
                 if (exParam && exParam === ex.name) {
                     mainBtn.classList.add('selected');
                 }
                 mainBtn.onclick = (e) => {
                     e.preventDefault();
-                    // If this game mode is already selected, clear all params and reload
                     if (exParam && exParam === ex.name) {
                         window.location.href = window.location.pathname;
                         return;
                     }
-                    // Build params
                     const params = new URLSearchParams();
-                    // Parse the example's parameters string
                     ex.parameters.split('&').forEach(pair => {
                         const [k, v] = pair.split('=');
                         if (k && v) {
-                            // Map startUrl/endUrl to S/E for consistency
                             if (k === 'startUrl') params.set('S', v);
                             else if (k === 'endUrl') params.set('E', v);
                             else params.set(k, v);
@@ -429,19 +432,94 @@
                 };
                 container.appendChild(mainBtn);
 
+                // Dice button
+                const diceBtn = document.createElement('button');
+                diceBtn.type = 'button';
+                diceBtn.className = 'button button-secondary button-icon';
+                diceBtn.id = 'randomExampleBtn';
+                diceBtn.title = 'Random Game Mode';
+                diceBtn.innerHTML = '<i class="fas fa-dice"></i>';
+                if (navButtonsShouldFade) diceBtn.classList.add('fade-out');
+                container.appendChild(diceBtn);
+
                 // Right button
                 const rightBtn = document.createElement('button');
                 rightBtn.textContent = '→';
                 rightBtn.className = 'button button-secondary';
+                if (navButtonsShouldFade) rightBtn.classList.add('fade-out');
                 rightBtn.onclick = () => {
                     currentIndex = (currentIndex + 1) % exampleList.length;
                     render();
                 };
                 container.appendChild(rightBtn);
+
+                attachDiceBtnListener();
             }
             render();
+
+            function attachDiceBtnListener() {
+                setTimeout(() => {
+                    const randomBtn = document.getElementById('randomExampleBtn');
+                    if (randomBtn && window.animateRandomExampleNav) {
+                        randomBtn.onclick = () => {
+                            randomBtn.disabled = true;
+                            window.animateRandomExampleNav().finally(() => {
+                                setTimeout(() => { randomBtn.disabled = false; }, 2000);
+                            });
+                        };
+                    }
+                }, 0);
+            }
         }
         setupExampleNav();
+
+        // Expose slot-machine animation for random example selection
+        window.animateRandomExampleNav = async function() {
+            if (!exampleList.length || !render) return;
+            navButtonsShouldFade = true;
+            render();
+            await new Promise(r => setTimeout(r, 200));
+            let totalCycles = Math.floor(Math.random() * 8) + 16; // 16-23 cycles
+            let delay = 60;
+            let lastIndex = currentIndex;
+            for (let i = 0; i < totalCycles; i++) {
+                delay = 60 + Math.pow(i, 1.7);
+                currentIndex = (currentIndex + 1) % exampleList.length;
+                render();
+                await new Promise(r => setTimeout(r, delay));
+            }
+            let randomIndex = Math.floor(Math.random() * exampleList.length);
+            for (let i = 0; i < exampleList.length; i++) {
+                delay += 40;
+                currentIndex = (currentIndex + 1) % exampleList.length;
+                render();
+                await new Promise(r => setTimeout(r, delay));
+                if (currentIndex === randomIndex) break;
+            }
+            setTimeout(() => {
+                navButtonsShouldFade = false;
+                render();
+                const mainBtn = document.querySelector('.example-main-btn');
+                if (mainBtn) mainBtn.click();
+            }, 200);
+        }
+
+        // Add after setupExampleNav();
+        window.addEventListener('scroll', () => {
+            const navGroup = document.getElementById('exampleNavFadeGroup');
+            if (!navGroup) return;
+            const scrollPosition = window.scrollY;
+            const fadeStart = 20;
+            const fadeEnd = 50;
+            if (scrollPosition <= fadeStart) {
+                navGroup.style.opacity = '1';
+            } else if (scrollPosition >= fadeEnd) {
+                navGroup.style.opacity = '0';
+            } else {
+                const opacity = 1 - ((scrollPosition - fadeStart) / (fadeEnd - fadeStart));
+                navGroup.style.opacity = opacity.toString();
+            }
+        });
     </script>
     <script>
         // Handle WebSocket errors

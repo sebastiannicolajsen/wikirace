@@ -1,5 +1,5 @@
 const QRCode = require('qrcode');
-const { getRoom } = require('./roomManager');
+const { rooms } = require('./roomManager');
 
 // Cache for QR codes
 const qrCache = new Map();
@@ -61,7 +61,7 @@ async function generateRoomQRCode(roomId, baseUrl, backgroundColor = '#ffffff') 
     }
 
     // Check if room exists
-    const room = getRoom(roomId);
+    const room = rooms.get(roomId);
     if (!room) {
       console.error(`Room ${roomId} not found`);
       throw new Error('Room not found');

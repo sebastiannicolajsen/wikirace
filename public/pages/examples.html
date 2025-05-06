@@ -167,7 +167,12 @@
     </div>
     <script type="module">
         import { initAnimatedTitle, getAnimatedTitleHTML } from '/js/animatedTitle.js';
-        document.getElementById('animatedTitle').innerHTML = getAnimatedTitleHTML('WikiRace', 'examples');
+        const titleContainer = document.getElementById('animatedTitle');
+        titleContainer.innerHTML = getAnimatedTitleHTML('WikiRace', 'examples');
+        titleContainer.style.cursor = 'pointer';
+        titleContainer.addEventListener('click', () => {
+            window.location.href = '/';
+        });
         initAnimatedTitle();
 
         let activeTagFilter = null;

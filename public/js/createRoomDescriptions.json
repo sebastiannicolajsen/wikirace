@@ -25,7 +25,7 @@
     },
     "continuation": {
         "title": "Continue from pause",
-        "description": "Determines who can continue the game after a pause (happens after link selection). 'No pause' means that there is no pause, 'Owner only' means only the room creator can continue, and 'All' means any player can continue."
+        "description": "Determines who can continue the game after a pause (happens after link selection). 'No pause' means that there is no pause, 'Owner only' means only the room creator can continue, and 'All' means all players need to agree to continue."
     },
     "chooser": {
         "title": "Choose link when none clicked",

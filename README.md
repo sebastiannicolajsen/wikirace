@@ -1,10 +1,5 @@
 # wikirace
-Wiki race competition. A badly vibe-coded version. Rules are simple:
-
-1. Select start entry and goal entry (links or random)
-2. All participants join in
-3. First one to reach goal entry wins!
-4. The game is turn based, whenever a person clicks a link, everyone else has x seconds (as defined by creator) to select another link. Otherwise the system will pick one randomly from the wiki entry.
+Wiki race competition. A badly vibe-coded version. A more *gamey* experience: Get first to a link, but with various configurable elements such as effect cards, timers and rules for not picking fast enough - bomb, return, or swap with your enemies.
 
 ## Deployment
 
@@ -30,6 +25,12 @@ To deploy the WikiRace application, you'll need to set up the following environm
   - Maximum number of concurrent game rooms allowed
   - Adjust based on your server capacity
   - Example: `MAX_ROOMS=20`
+
+- `PATH_API` (optional)
+  - URL of the path finding API service
+  - Used to fetch shortest paths between Wikipedia articles
+  - If not provided, path finding functionality will be disabled
+  - Example: `PATH_API=https://path-api.example.com/find`
 
 ### Example Deployment Setup
 

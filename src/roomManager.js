@@ -74,15 +74,16 @@
  */
 
 const { v4: uuidv4 } = require("uuid");
-const { getGameState } = require("./gameStateManager");
+const { getGameState, broadcastGameState } = require("./gameStateManager");
 const express = require("express");
 const router = express.Router();
 const { getWikiContent } = require("./wikiProxy");
 const { JSDOM } = require('jsdom');
+const { fetchShortestPathsAsync } = require('./shortestPathsManager');
+const { roomCleanupTimers, setRoomCleanupTimer, clearRoomCleanupTimer } = require('./roomCleanup');
 
 // Store all active rooms
 const rooms = new Map();
-const roomCleanupTimers = new Map();
 
 // Get the maximum number of rooms allowed
 const maxRooms = parseInt(process.env.MAX_ROOMS) || 10;
@@ -119,20 +120,11 @@ function isValidWikipediaUrl(url) {
 }
 
 // Helper function to set a cleanup timer for a room
-function setRoomCleanupTimer(roomId) {
-    // Clear any existing timer
-    if (roomCleanupTimers.has(roomId)) {
-        clearTimeout(roomCleanupTimers.get(roomId));
-        roomCleanupTimers.delete(roomId);
-    }
-
-    // Set new timer
-    const timerId = setTimeout(() => {
-        console.log(`[Room ${roomId}] Cleanup timer expired, checking if room should be deleted`);
+function setupRoomCleanupTimer(roomId) {
+    setRoomCleanupTimer(roomId, () => {
         const room = rooms.get(roomId);
         if (!room) {
             console.log(`[Room ${roomId}] Room no longer exists, cleaning up timer`);
-            roomCleanupTimers.delete(roomId);
             return;
         }
         if (isRoomEmpty(room)) {
@@ -140,21 +132,9 @@ function setRoomCleanupTimer(roomId) {
             deleteRoom(roomId);
         } else {
             console.log(`[Room ${roomId}] Room is not empty, resetting timer (playerNames=${Array.from(room.players.keys()).join(', ')})`);
-            setRoomCleanupTimer(roomId); // Reset the timer
+            setupRoomCleanupTimer(roomId); // Reset the timer
         }
-    }, 30000); // 30 seconds
-
-    roomCleanupTimers.set(roomId, timerId);
-    console.log(`[Room ${roomId}] Cleanup timer set for 30 seconds`);
-}
-
-// Helper function to clear a room's cleanup timer
-function clearRoomCleanupTimer(roomId) {
-    if (roomCleanupTimers.has(roomId)) {
-        clearTimeout(roomCleanupTimers.get(roomId));
-        roomCleanupTimers.delete(roomId);
-        console.log(`[Room ${roomId}] Cleanup timer cleared`);
-    }
+    });
 }
 
 // Helper function to extract first paragraph from HTML
@@ -451,14 +431,24 @@ async function createRoom(
     currentPlayerIndex: 0,
     readyPlayers: new Set(),
     config: mergedConfig,
+    shortestpaths: null, // Initialize as null
   };
 
   rooms.set(id, object);
   console.log(`[Room ${id}] Room created and added to rooms map. Current rooms:`, Array.from(rooms.keys()));
   
   // Set initial cleanup timer
-  setRoomCleanupTimer(id);
+  setupRoomCleanupTimer(id);
   console.log(`[Room ${id}] Initial cleanup timer set`);
+
+  // Fetch shortest paths asynchronously
+  fetchShortestPathsAsync(startUrl, endUrl, (result) => {
+    const room = rooms.get(id);
+    if (room) {
+      room.shortestpaths = result;
+      broadcastGameState(room);
+    }
+  });
 
   return id;
 }
@@ -547,13 +537,12 @@ function deleteRoom(roomId) {
 
 module.exports = {
   rooms,
+  roomCleanupTimers,
   createRoom,
-  isRoomEmpty,
-  isValidWikipediaUrl,
-  router,
   getRoom,
   deleteRoom,
-  roomCleanupTimers,
+  isRoomEmpty,
   setRoomCleanupTimer,
-  clearRoomCleanupTimer
+  clearRoomCleanupTimer,
+  router
 };

@@ -61,6 +61,12 @@ function handleSelectLink(room, data) {
   // Track that this player has submitted their link
   if (room.waitingForPlayers) {
     room.submittedPlayers.add(playerName);
+    // Initialize submissionOrder if it doesn't exist
+    if (!room.submissionOrder) {
+      room.submissionOrder = [];
+    }
+    // Add player to submission order
+    room.submissionOrder.push(playerName);
   }
 
   // if all players have selected a link, continue to waiting state
@@ -96,6 +102,12 @@ function handleRandomSelectResponse(room, data) {
   // Track that this player has submitted their link
   if (room.waitingForPlayers) {
     room.submittedPlayers.add(playerName);
+    // Initialize submissionOrder if it doesn't exist
+    if (!room.submissionOrder) {
+      room.submissionOrder = [];
+    }
+    // Add player to submission order
+    room.submissionOrder.push(playerName);
   }
 
   // Clear any pending random URLs for this player
@@ -251,37 +263,6 @@ function handleMissingPlayerResponses(room, data) {
   });
 }
 
-function handleWaitingTimerExpired(room, data) {
-  // Clear the waiting timer
-  if (room.waitingTimer) {
-    room.waitingTimer = null;
-  }
-
-  // Check if any player has reached the goal first
-  if (checkForWinner(room)) {
-    handleStateChange(room, GameStates.FINISHED, data, true);
-    return;
-  }
-
-  // Track players who missed clicking links
-  Array.from(room.players.keys()).forEach(playerName => {
-    if (!room.submittedPlayers.has(playerName)) {
-      // Increment the missed links count for this player
-      const currentCount = room.missedLinks.get(playerName) || 0;
-      room.missedLinks.set(playerName, currentCount + 1);
-    }
-  });
-
-  // Only proceed with selection if there's no winner
-  if (!checkForWinner(room)) {
-    // Start the retry process for missing players
-    handleMissingPlayerResponses(room, data);
-  }
-
-  // Broadcast the updated state
-  broadcastGameState(room);
-}
-
 function handleSelectionForMissingPlayers(room, data) {
   const { selections } = data;
   
@@ -295,6 +276,12 @@ function handleSelectionForMissingPlayers(room, data) {
       // Track that this player has submitted their link
       if (room.waitingForPlayers) {
         room.submittedPlayers.add(playerName);
+        // Initialize submissionOrder if it doesn't exist
+        if (!room.submissionOrder) {
+          room.submissionOrder = [];
+        }
+        // Add player to submission order
+        room.submissionOrder.push(playerName);
       }
     }
   });

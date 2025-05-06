@@ -8,10 +8,18 @@
     "category": "Regular"
   },
   {
-    "name": "Uno Race",
+    "name": "As Intended",
     "description": "A fun race where all effect cards are enabled and can be obtained during play. ",
     "parameters": "Q=30PAPB1R1S1F20YYYL2S2",
-    "emoji": "🃏",
+    "emoji": "👨",
+    "tags": ["classic", "effect cards", "chaos", "strategy"],
+    "category": "Regular"
+  },
+  {
+    "name": "Drinking Version",
+    "description": "All effect cards are enabled, but you start with none. Owner can hand out during pause, for drinking of course.",
+    "parameters": "Q=30PNPB0R0S0F20YYYLNSN",
+    "emoji": "🍺",
     "tags": ["classic", "effect cards", "chaos", "strategy"],
     "category": "Regular"
   },

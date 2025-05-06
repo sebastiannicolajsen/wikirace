@@ -218,6 +218,19 @@
         z-index: 100;
       }
       
+      #headerButtonContainer {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        z-index: 100;
+      }
+      
+      #headerButtonContainer .header-button {
+        position: static;
+      }
+      
       @media (min-width: 768px) {
         .observer-container {
           display: none;
@@ -550,6 +563,18 @@
         // Render only the correct header button
         const headerButtonContainer = document.getElementById('headerButtonContainer');
         headerButtonContainer.innerHTML = '';
+        
+        // Add shortest paths button if available
+        if (state.shortestpaths && state.shortestpaths !== 'disabled' && state.shortestpaths !== 'not-found') {
+          const shortestPathsButton = document.createElement('button');
+          shortestPathsButton.id = 'shortestPathsButton';
+          shortestPathsButton.className = 'header-button';
+          shortestPathsButton.title = 'Show Shortest Paths';
+          shortestPathsButton.textContent = '🎯';
+          shortestPathsButton.onclick = () => showShortestPathsPopup(state);
+          headerButtonContainer.appendChild(shortestPathsButton);
+        }
+        
         if (playerName === state.creator && playerType === 'observer') {
           // Show close room button
           const creatorLeaveButton = document.createElement('button');
@@ -1034,6 +1059,156 @@
           closeButton.style.zIndex = '1';
         }
       }
+
+      function showShortestPathsPopup(state) {
+        const overlay = document.createElement('div');
+        overlay.className = 'shortest-path-overlay';
+        
+        const content = document.createElement('div');
+        content.className = 'overlay-content';
+        
+        const header = document.createElement('div');
+        header.className = 'overlay-header';
+        header.textContent = 'Shortest Path Example';
+        
+        const closeButton = document.createElement('button');
+        closeButton.className = 'overlay-close';
+        closeButton.textContent = '×';
+        closeButton.onclick = () => overlay.remove();
+        
+        const pathContainer = document.createElement('div');
+        pathContainer.className = 'overlay-path-container';
+        
+        if (state.shortestpaths.example && Array.isArray(state.shortestpaths.example)) {
+            const pathEntries = document.createElement('div');
+            pathEntries.className = 'overlay-path-entries';
+            
+            state.shortestpaths.example.forEach((url, index) => {
+                const entry = document.createElement('div');
+                entry.className = 'path-entry';
+                
+                const emoji = document.createElement('span');
+                emoji.className = 'effect-emoji';
+                if (index === 0) {
+                    emoji.textContent = '📍';
+                } else if (index === state.shortestpaths.example.length - 1) {
+                    emoji.textContent = '🏁';
+                } else {
+                    emoji.textContent = '➡️';
+                }
+                
+                const urlSpan = document.createElement('span');
+                urlSpan.className = 'path-url';
+                urlSpan.textContent = urlToTitle(url);
+                
+                entry.appendChild(emoji);
+                entry.appendChild(urlSpan);
+                pathEntries.appendChild(entry);
+            });
+            
+            pathContainer.appendChild(pathEntries);
+        }
+        
+        header.appendChild(closeButton);
+        content.appendChild(header);
+        content.appendChild(pathContainer);
+        overlay.appendChild(content);
+        
+        // Close on click outside
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        };
+        
+        document.body.appendChild(overlay);
+      }
+
+      // Add CSS for the overlay
+      const style = document.createElement('style');
+      style.textContent = `
+        .shortest-path-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+        }
+
+        .overlay-content {
+          background: white;
+          border-radius: 8px;
+          padding: 1.5rem;
+          width: 90%;
+          max-width: 600px;
+          max-height: 80vh;
+          overflow-y: auto;
+          position: relative;
+        }
+
+        .overlay-header {
+          font-size: 1.2rem;
+          font-weight: bold;
+          margin-bottom: 1rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .overlay-close {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          padding: 0.5rem;
+          line-height: 1;
+          color: #666;
+        }
+
+        .overlay-close:hover {
+          color: #333;
+        }
+
+        .overlay-path-container {
+          background: #f8f9fa;
+          border-radius: 4px;
+          padding: 1rem;
+        }
+
+        .overlay-path-entries {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .path-entry {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem;
+          background: transparent;
+          border-radius: 4px;
+          border-left: 4px solid #dee2e6;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .path-url {
+          font-family: 'Courier New', monospace;
+          font-size: 1rem;
+          color: #333;
+        }
+
+        .effect-emoji {
+          font-size: 1.2rem;
+        }
+      `;
+      document.head.appendChild(style);
     </script>
   </body>
 </html> 

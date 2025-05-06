@@ -98,6 +98,21 @@
 .start-url, .end-url {
   font-weight: bold;
   color: #333;
+  transition: opacity 0.2s;
+}
+
+.start-url.clickable, .end-url.clickable {
+  cursor: pointer;
+}
+
+.start-url.clickable:hover, .end-url.clickable:hover {
+  opacity: 0.7;
+}
+
+.start-url.clickable::after, .end-url.clickable::after {
+  content: " 👁️";
+  font-size: 0.9em;
+  opacity: 0.7;
 }
 
 .swipe-container {
@@ -202,6 +217,14 @@
   border: 2px solid #FFD700;
 }
 
+.second-place-section {
+  border: 2px solid #C0C0C0;
+}
+
+.third-place-section {
+  border: 2px solid #CD7F32;
+}
+
 .reached-goal-section {
   border: 1px solid #C0C0C0;
 }
@@ -213,17 +236,25 @@
 .section-title {
   font-size: 1.2rem;
   font-weight: bold;
-  margin-bottom: 1rem;
   color: #333;
   position: sticky;
   top: 0;
   background: white;
-  padding: 0.5rem 0;
+  padding: 0;
+  margin: 0;
   z-index: 1;
 }
 
 .winner-section .section-title {
   color: #FFD700;
+}
+
+.second-place-section .section-title {
+  color: #C0C0C0;
+}
+
+.third-place-section .section-title {
+  color: #CD7F32;
 }
 
 .reached-goal-section .section-title {
@@ -262,9 +293,14 @@
   border: 2px solid #FFD700;
 }
 
-.reached-goal-section .player-path.current-player {
+.second-place-section .player-path.current-player {
   background: rgba(192, 192, 192, 0.15);
   border: 2px solid #C0C0C0;
+}
+
+.third-place-section .player-path.current-player {
+  background: rgba(197, 124, 19, 0.15);
+  border: 2px solid #CD7F32;
 }
 
 .other-players-section .player-path.current-player {
@@ -272,11 +308,47 @@
   border: 2px solid #9E9E9E;
 }
 
+.player-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
 .player-name {
   font-weight: bold;
   font-size: 1.2rem;
-  margin-bottom: 1rem;
-  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.player-name.gold {
+  color: #FFD700;
+}
+
+.player-name.silver {
+  color: #C0C0C0;
+}
+
+.player-name.bronze {
+  color: #CD7F32;
+}
+
+.player-position {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  opacity: 0.7;
+}
+
+.player-position.gold {
+  color: #FFD700;
+}
+
+.player-position.silver {
+  color: #C0C0C0;
+}
+
+.player-position.bronze {
+  color: #CD7F32;
 }
 
 .path-entries {
@@ -285,6 +357,9 @@
   gap: 0.75rem;
   height: auto;
   overflow: visible;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
 }
 
 .path-entry {
@@ -337,6 +412,13 @@
   opacity: 0.7;
 }
 
+.path-entry.ghosted {
+  opacity: 0.5;
+  border-left-color: #9E9E9E;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .path-url {
   font-family: 'Courier New', monospace;
   font-size: 1rem;
@@ -377,26 +459,178 @@
   display: none;
 }
 
-.restart-button {
+.restart-button, .shortest-path-button {
   background: #f8f9fa;
   border: 2px solid #dee2e6;
   border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-size: 1.1rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
   font-weight: bold;
   color: #333;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
+  display: block;
+  width: 100%;
 }
 
-.restart-button:hover {
+.restart-button:hover, .shortest-path-button:hover {
   background: #e9ecef;
   border-color: #ced4da;
   transform: translateY(-1px);
 }
 
-.restart-button:active {
+.restart-button:active, .shortest-path-button:active {
   transform: translateY(0);
+}
+
+.shortest-path-info {
+  width: 100%;
+}
+
+.shortest-path-divider {
+  width: 100%;
+  border-top: 1px solid #e0e0e0;
+  margin: 0.5rem 0;
+}
+
+.ghosted-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0 1rem 1rem 1rem;
+  border-radius: 4px;
+}
+
+.shortest-path-warning {
+  color: #f44336;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.warning-emoji {
+  font-size: 1.1rem;
+}
+
+.shortest-path-text {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  width: 100%;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  font-size: 1.2rem;
+  color: #666;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.shortest-path-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.overlay-content {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.overlay-header {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.overlay-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+  color: #666;
+}
+
+.overlay-close:hover {
+  color: #333;
+}
+
+.overlay-path-container {
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.overlay-path-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.url-container {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #333;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.url-container.clickable {
+  cursor: pointer;
+  background-color: #f8f9fa;
+}
+
+.url-container.clickable:hover {
+  background-color: #e9ecef;
+}
+
+.url-container.clickable::after {
+  content: "👁️";
+  margin-left: 0.5rem;
+  font-size: 0.9em;
+  opacity: 0.7;
 }
 </style> 

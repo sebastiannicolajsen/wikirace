@@ -187,8 +187,13 @@ function processWikiContent(content) {
                 link.style.color = 'red';
                 link.style.pointerEvents = 'none';
                 link.style.cursor = 'not-allowed';
-            } else if (!selectedUrls.has(fullUrl)) {
-                // Add to available URLs if not already selected and not affected
+            } else if (fullUrl === currentUrl) {
+                // Only disable the current page link and add [current location]
+                link.style.opacity = '0.5';
+                link.style.pointerEvents = 'none';
+                link.textContent = `${link.textContent} [current location]`;
+            } else {
+                // Add to available URLs if not affected and not current page
                 availableUrls.add(fullUrl);
 
                 // Optimize click handling for mobile
@@ -200,10 +205,6 @@ function processWikiContent(content) {
                 } else {
                     link.setAttribute('onclick', `event.preventDefault(); window.websocketManager.sendSelectLink('${fullUrl}');`);
                 }
-            } else {
-                // If URL has been selected, make it look disabled
-                link.style.opacity = '0.5';
-                link.style.pointerEvents = 'none';
             }
         } else {
             // Replace external links with just text
@@ -241,7 +242,9 @@ function showWaitingForPlayersPopup(waitingPlayers) {
                         ${waitingPlayers.map(player => `
                             <div class="waiting-player">
                                 <span class="player-name">${player.name}</span>
-                                <span class="waiting-status">Waiting...</span>
+                                <span class="waiting-status">
+                                    <div class="spinner"></div>
+                                </span>
                             </div>
                         `).join('')}
                     </div>
@@ -301,6 +304,25 @@ function showWaitingForPlayersPopup(waitingPlayers) {
                         align-items: center;
                     `;
                 });
+
+                // Add spinner styles
+                const style = document.createElement('style');
+                style.textContent = `
+                    .spinner {
+                        width: 20px;
+                        height: 20px;
+                        border: 2px solid #f3f3f3;
+                        border-top: 2px solid #3498db;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                    }
+
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `;
+                document.head.appendChild(style);
 }
 
 // Function to show timer expired popup

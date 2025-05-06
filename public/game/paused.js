@@ -14,6 +14,69 @@ import timerManager from "/js/timer.js"; // Import timerManager
 // let currentPopup = null;
 // let gameTimer = null; // Timer handled by timerManager
 
+// Store previous continueResponses for toast notifications
+let previousContinueResponses = [];
+
+// Toast for ready-to-continue (styled like handout.js)
+function showReadyToContinuePopup(name) {
+    // Create notification container if it doesn't exist
+    let notificationContainer = document.getElementById('effect-notifications');
+    if (!notificationContainer) {
+        notificationContainer = document.createElement('div');
+        notificationContainer.id = 'effect-notifications';
+        notificationContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+            width: auto;
+            max-width: 90%;
+        `;
+        document.body.appendChild(notificationContainer);
+    }
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        background: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        font-size: 14px;
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: all 0.3s ease;
+        pointer-events: none;
+        white-space: normal;
+        min-width: 200px;
+        max-width: 400px;
+    `;
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="color: #0066cc; font-weight: bold;">${name}</span>
+            <span>is ready to continue!</span>
+        </div>
+    `;
+    notificationContainer.appendChild(notification);
+    requestAnimationFrame(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateY(0)';
+    });
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
 // REMOVED loadPendingSelections, fetchWikiContent, processWikiContent, startTimer
 // These are not relevant for the paused state view
 
@@ -232,6 +295,20 @@ export async function handleStateUpdate(state, subpageElement, timerContainerEle
 
         // Setup the content, listeners, and timer
         setupPausedPage(state, subpageElement, timerContainerElement);
+
+        // --- READY TO CONTINUE TOAST LOGIC ---
+        if (state.config?.continuation === 'democratic') {
+            const currentContinueResponses = state.continueResponses || [];
+            // Find new names in continueResponses
+            const newReady = currentContinueResponses.filter(name => !previousContinueResponses.includes(name));
+            console.debug('[Paused] New ready to continue:', newReady);
+            newReady.forEach(name => {
+                if (name !== websocketManager.playerName) { // Don't toast for self
+                    showReadyToContinuePopup(name);
+                }
+            });
+            previousContinueResponses = [...currentContinueResponses];
+        }
 
     } catch (error) {
         console.error(`Error processing paused state update:`, error);
