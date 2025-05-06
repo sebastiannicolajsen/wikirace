@@ -30,6 +30,7 @@ To deploy the WikiRace application, you'll need to set up the following environm
   - URL of the path finding API service
   - Used to fetch shortest paths between Wikipedia articles
   - If not provided, path finding functionality will be disabled
+  - For example, host your own instance of `https://sixdegreesofwikipedia.com/` and expose the API.
   - Example: `PATH_API=https://path-api.example.com/find`
 
 ### Example Deployment Setup

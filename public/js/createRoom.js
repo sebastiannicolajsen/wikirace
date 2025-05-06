@@ -314,11 +314,11 @@ class CreateRoomManager {
                 }
             } catch (error) {
                 popupManager.showInfo('Failed to store URL. Please try again.');
-                await this.loadRandomUrl(type);
+                await this.loadRandomUrl(type, true);
             }
         } else {
-            // If the URL is invalid, load a random one
-            await this.loadRandomUrl(type);
+            // If the URL is invalid, load a random one and show a popup
+            await this.loadRandomUrl(type, true);
         }
     }
 
