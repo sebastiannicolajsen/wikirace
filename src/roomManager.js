@@ -557,13 +557,15 @@ router.post("/create", async function (req, res) {
       ...getGameState(room),
     });
 
+    setupRoomCleanupTimer(roomId);
+
     // dirty hack to ensure fast response and do work on main thread after response is sent
     setTimeout(() => {
       // Set initial cleanup timer after response is sent
-      setupRoomCleanupTimer(roomId);
+      
       console.log(`[Room ${roomId}] Initial cleanup timer set`);
 
-      // Start fetching previews and shortest paths after response is sent
+      // Start fetching previews and shortest paths after response is sent, delay to allow player to fetch page
       fetchPreviewsAsync(startUrl, endUrl, roomId);
       fetchShortestPathsAsync(startUrl, endUrl, (result) => {
         const room = rooms.get(roomId);
@@ -571,7 +573,7 @@ router.post("/create", async function (req, res) {
           room.shortestpaths = result;
           broadcastGameState(room);
         }
-      },0);
+      }, 1000);
     });
   } catch (error) {
     // Format error messages based on their type
