@@ -488,7 +488,7 @@
       <main class="page-content">
         <div class="qr-section">
           <div class="qr-container">
-            <div id="qrCode" class="qr-code"></div>
+            <div id="qrCode" class="qr-code loading"></div>
             <div class="qr-link-container" id="roomLinkContainer">
               <span id="roomLink"></span>
             </div>
@@ -823,10 +823,10 @@
 
       // Fetch QR code
       async function fetchQRCode() {
+        const qrCode = document.getElementById('qrCode');
+        // Loading class is already applied in HTML, no need to add it here
+        
         try {
-          const qrCode = document.getElementById('qrCode');
-          qrCode.classList.add('loading'); // Add loading class before fetch
-
           const backgroundColor = rgbToHex(getComputedStyle(document.body).backgroundColor);
           const response = await fetch(`/api/qr/${roomId}?bg=${encodeURIComponent(backgroundColor)}`);
           if (!response.ok) {
