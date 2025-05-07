@@ -99,7 +99,7 @@ const worker = new Worker(path.join(__dirname, 'roomWorker.js'));
 
 // Handle worker messages
 worker.on('message', (data) => {
-    const { type, roomId, startPreview, endPreview, result, error } = data;
+    const { type, roomId, startPreview, endPreview, result, error, ranking } = data;
     const room = rooms.get(roomId);
     
     if (!room) return;
@@ -113,6 +113,11 @@ worker.on('message', (data) => {
             
         case 'shortestPathsReady':
             room.shortestpaths = result;
+            broadcastGameState(room);
+            break;
+            
+        case 'rankingReady':
+            room.ranking = ranking;
             broadcastGameState(room);
             break;
             
@@ -663,4 +668,5 @@ module.exports = {
   setRoomCleanupTimer,
   clearRoomCleanupTimer,
   router,
+  worker,
 };

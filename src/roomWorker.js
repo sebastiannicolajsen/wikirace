@@ -99,9 +99,129 @@ async function getFirstParagraph(url) {
     }
 }
 
+// Helper function to calculate room ranking
+async function calculateRoomRanking(room) {
+    // Initialize ranking array
+    const ranking = [];
+    
+    // First, add the winner to the ranking
+    const winner = room.players.find(p => p.name === room.winner);
+    if (winner) {
+        ranking.push(winner);
+    }
+
+    // Track players who reached the end URL (excluding winner)
+    const playersAtEnd = [];
+    // Track players who need shortest path calculation
+    const playersNeedingShortestPath = [];
+
+    // Categorize players
+    for (const player of room.players) {
+        if (player.name === room.winner) continue; // Skip winner as they're already added
+
+        if (player.path && player.path.length > 0) {
+            const lastPathEntry = player.path[player.path.length - 1];
+            if (lastPathEntry.url === room.endUrl) {
+                playersAtEnd.push(player);
+            } else {
+                playersNeedingShortestPath.push(player);
+            }
+        }
+    }
+
+    // Sort players who reached the end according to submission order
+    playersAtEnd.sort((a, b) => {
+        const aIndex = room.submissionOrder.indexOf(a.name);
+        const bIndex = room.submissionOrder.indexOf(b.name);
+        return aIndex - bIndex;
+    });
+
+    // Add players who reached the end to ranking
+    playersAtEnd.forEach(player => {
+        ranking.push(player);
+    });
+
+    // If PATH_API is not set, just add remaining players by submission order
+    if (!process.env.PATH_API) {
+        // Sort remaining players by submission order
+        playersNeedingShortestPath.sort((a, b) => {
+            const aIndex = room.submissionOrder.indexOf(a.name);
+            const bIndex = room.submissionOrder.indexOf(b.name);
+            return aIndex - bIndex;
+        });
+
+        // Add remaining players to ranking
+        playersNeedingShortestPath.forEach(player => {
+            ranking.push(player);
+        });
+
+        // Add surrendered players at the end
+        ranking.push(...room.surrenderedPlayers);
+
+        return ranking;
+    }
+
+    // Calculate shortest paths for surrendered players
+    if (room.surrenderedPlayers.length > 0) {
+        await Promise.all(room.surrenderedPlayers.map(async player => {
+            const lastPathEntry = player.path[player.path.length - 1];
+            return new Promise((resolve) => {
+                fetchShortestPathsAsync(lastPathEntry.url, room.endUrl, (result) => {
+                    player.shortestPathToEnd = result;
+                    resolve();
+                });
+            });
+        }));
+    }
+
+    // If no players need shortest path calculation, return ranking with surrendered players
+    if (playersNeedingShortestPath.length === 0) {
+        ranking.push(...room.surrenderedPlayers);
+        return ranking;
+    }
+
+    // Fetch shortest paths for remaining players
+    await Promise.all(playersNeedingShortestPath.map(async player => {
+        const lastPathEntry = player.path[player.path.length - 1];
+        return new Promise((resolve) => {
+            fetchShortestPathsAsync(lastPathEntry.url, room.endUrl, (result) => {
+                player.shortestPathToEnd = result;
+                resolve();
+            });
+        });
+    }));
+
+    // Sort players needing shortest path by path length and submission order
+    const sortedPlayers = playersNeedingShortestPath
+        .map(player => {
+            const response = player.shortestPathToEnd;
+            return {
+                player,
+                pathLength: response === "not-found" || response === "disabled" ? Infinity : response.length,
+                submissionIndex: room.submissionOrder.indexOf(player.name)
+            };
+        })
+        .sort((a, b) => {
+            if (a.pathLength === b.pathLength) {
+                return a.submissionIndex - b.submissionIndex;
+            }
+            return a.pathLength - b.pathLength;
+        });
+
+    // Add sorted players to ranking
+    sortedPlayers.forEach(({ player }) => {
+        ranking.push(player);
+    });
+
+    // Add surrendered players at the end
+    ranking.push(...room.surrenderedPlayers);
+
+    return ranking;
+}
+
 // Handle messages from the main thread
 parentPort.on('message', async (data) => {
-    const { type, roomId, startUrl, endUrl } = data;
+    const { type, roomId, startUrl, endUrl, room } = data;
     
     if (type === 'roomSetup') {
         try {
@@ -137,6 +257,21 @@ parentPort.on('message', async (data) => {
                 type: 'error', 
                 roomId, 
                 error: error.message 
+            });
+        }
+    } else if (type === 'calculateRanking') {
+        try {
+            const ranking = await calculateRoomRanking(room);
+            parentPort.postMessage({
+                type: 'rankingReady',
+                roomId,
+                ranking
+            });
+        } catch (error) {
+            parentPort.postMessage({
+                type: 'error',
+                roomId,
+                error: error.message
             });
         }
     }
