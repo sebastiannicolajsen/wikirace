@@ -128,56 +128,123 @@ class PlayerLanes {
     const currentNames = new Set(state.players.map((player) => player.name));
     const previousPaths = new Map(this.paths);
 
+    // Set game state on container for path visualization to access
+    this.container.setAttribute('data-state', state.state);
+
     // Remove lanes/characters/paths for players no longer present
     for (const [name, lane] of this.lanes.entries()) {
       if (!currentNames.has(name)) {
-        this.container.removeChild(lane);
-        this.lanes.delete(name);
-        const character = this.characters.get(name);
-        if (character) {
-          character.stopAnimation();
-          this.characters.delete(name);
-        }
-        this.paths.delete(name);
-        this.pathCutoffs.delete(name);
-        const pathVis = this.pathsVis.get(name);
-        if (pathVis) {
-          if (pathVis.svg && pathVis.svg.parentNode)
-            pathVis.svg.parentNode.removeChild(pathVis.svg);
-          this.pathsVis.delete(name);
+        // Don't remove surrendered players' paths
+        const player = state.players.find(p => p.name === name);
+        if (!player || !player.path?.some(url => url.effect === 'surrender')) {
+          this.container.removeChild(lane);
+          this.lanes.delete(name);
+          const character = this.characters.get(name);
+          if (character) {
+            character.stopAnimation();
+            this.characters.delete(name);
+          }
+          this.paths.delete(name);
+          this.pathCutoffs.delete(name);
+          const pathVis = this.pathsVis.get(name);
+          if (pathVis) {
+            if (pathVis.svg && pathVis.svg.parentNode)
+              pathVis.svg.parentNode.removeChild(pathVis.svg);
+            this.pathsVis.delete(name);
+          }
         }
       }
     }
 
     // Get all player names for character assignment
-    const allPlayerNames = state.players.map((player) => player.name);
+    const allPlayerNames = state.state === 'finished' ? 
+      [...state.players.map(p => p.name), ...Object.keys(state.surrenderedPlayers || {})] :
+      state.players.map(p => p.name);
 
     // Check if all players have reached the reduction threshold
     let shouldReduce = true;
     let minPathLength = Infinity;
 
     // Add new lanes/characters as needed, and update paths
-    state.players.forEach((player) => {
-      if (!this.lanes.has(player.name)) {
+    const playersToProcess = state.state === 'finished' ? 
+      [...state.players, ...Object.entries(state.surrenderedPlayers || {}).map(([name, path]) => ({ 
+        name, 
+        path: Array.isArray(path) ? path : Object.values(path),
+        isSurrendered: true
+      }))] : 
+      state.players;
+
+    playersToProcess.forEach((player) => {
+      // Check if this is a surrendered player in finished state
+      const isSurrendered = player.isSurrendered || (Array.isArray(player.path) && player.path.some(url => url.effect === 'surrender'));
+      const shouldAddLane = !this.lanes.has(player.name) && 
+        (state.state !== 'finished' || state.state === 'finished');
+
+      if (shouldAddLane) {
         const lane = document.createElement("div");
         lane.className = "player-lane";
         lane.setAttribute('data-player', player.name);
-        // Path visualization (inserted first, so it's behind the character)
-        const pathVis = new PlayerPath(lane, state.id);
-        this.pathsVis.set(player.name, pathVis);
+        this.container.appendChild(lane);
+        this.lanes.set(player.name, lane);
+        
+        // Only add path visualization if not surrendered
+        if (!isSurrendered) {
+          const pathVis = new PlayerPath(lane, state.id);
+          this.pathsVis.set(player.name, pathVis);
+        }
+        
+        // Create and render character after lane is added to DOM
         let character = this.characters.get(player.name);
         if (!character) {
           character = new PlayerCharacter(player.name, allPlayerNames);
           this.characters.set(player.name, character);
-          character.render(lane); // Only render when new
+          character.render(lane);
         }
-
-        this.container.appendChild(lane);
-        this.lanes.set(player.name, lane);
+        
         this.pathCutoffs.set(player.name, 0); // Initialize cutoff for new player
       }
+
       // Always update the path for each player
       this.paths.set(player.name, player.path);
+
+      // Update path visualization and character position only if not surrendered
+      if (!isSurrendered && this.pathsVis.has(player.name)) {
+        const pathVis = this.pathsVis.get(player.name);
+        pathVis.update(player.path, state.state);
+        const latestPosition = pathVis.getLatestPlatePosition();
+        if (latestPosition) {
+          let character = this.characters.get(player.name);
+          if (!character) {
+            character = new PlayerCharacter(player.name, allPlayerNames);
+            this.characters.set(player.name, character);
+            const lane = this.lanes.get(player.name);
+            if (lane) {
+              character.render(lane);
+            }
+          }
+          if (character) {
+            character.updatePosition(latestPosition);
+            if (state.state === "finished") {
+              character.setEmoji("🍾");
+            }
+          }
+        }
+      } else if (isSurrendered) {
+        // For surrendered players, just position the character in the middle of the lane
+        let character = this.characters.get(player.name);
+        if (character) {
+          const lane = this.lanes.get(player.name);
+          if (lane) {
+            const rect = lane.getBoundingClientRect();
+            character.updatePosition({
+              x: rect.width / 2,
+              y: rect.height / 2
+            });
+            // Set surrender flag emoji for surrendered players
+            character.setEmoji("🏳️");
+          }
+        }
+      }
 
       // Count non-cancelled URLs, taking into account the cutoff
       const nonCancelledCount = player.path.filter(
@@ -195,44 +262,47 @@ class PlayerLanes {
 
     // If all players have reached the threshold, trigger reduction
     if (shouldReduce && minPathLength >= 4) {
-      this.triggerBackgroundTransition();
-      // Trigger reduction for each player with a random delay
-      state.players.forEach((player) => {
-        const pathVis = this.pathsVis.get(player.name);
-        if (pathVis) {
-          // Random delay between 0 and 300ms
-          const delay = Math.random() * 300;
-          setTimeout(() => {
-            pathVis.reducePath();
-            // Update the cutoff after reduction
-            this.pathCutoffs.set(
-              player.name,
-              (this.pathCutoffs.get(player.name) || 0) + 3
-            );
-            // Start continuous updates during reduction
-            const updateInterval = setInterval(() => {
-              if (!pathVis.isReducing) {
-                clearInterval(updateInterval);
-                return;
-              }
-              const latestPosition = pathVis.getLatestPlatePosition();
-              if (latestPosition) {
-                this.characters.get(player.name).updatePosition(latestPosition);
-              }
-            }, 16); // Update at ~60fps
-          }, delay);
-        }
-      });
+      // Only trigger reduction if we're not in finished state
+      if (state.state !== 'finished') {
+        this.triggerBackgroundTransition();
+        // Trigger reduction for each player with a random delay
+        state.players.forEach((player) => {
+          const pathVis = this.pathsVis.get(player.name);
+          if (pathVis) {
+            // Random delay between 0 and 300ms
+            const delay = Math.random() * 300;
+            setTimeout(() => {
+              pathVis.reducePath();
+              // Update the cutoff after reduction
+              this.pathCutoffs.set(
+                player.name,
+                (this.pathCutoffs.get(player.name) || 0) + 3
+              );
+              // Start continuous updates during reduction
+              const updateInterval = setInterval(() => {
+                if (!pathVis.isReducing) {
+                  clearInterval(updateInterval);
+                  return;
+                }
+                const latestPosition = pathVis.getLatestPlatePosition();
+                if (latestPosition) {
+                  this.characters.get(player.name).updatePosition(latestPosition);
+                }
+              }, 16); // Update at ~60fps
+            }, delay);
+          }
+        });
+      }
     }
 
     // Update path visualization
     state.players.forEach((player) => {
       if (this.pathsVis.has(player.name)) {
-        this.pathsVis.get(player.name).update(player.path);
+        // Pass the game state to the path visualization
+        const pathVis = this.pathsVis.get(player.name);
+        pathVis.update(player.path, state.state);
         // Get the latest plate position and update character position
-        const latestPosition = this.pathsVis
-          .get(player.name)
-          .getLatestPlatePosition();
+        const latestPosition = pathVis.getLatestPlatePosition();
         if (latestPosition) {
           this.characters.get(player.name).updatePosition(latestPosition);
         }
@@ -277,7 +347,10 @@ class PlayerLanes {
       }
 
       if (state.state === "finished") {
-        this.characters.get(player.name).setEmoji("🍾");
+        const character = this.characters.get(player.name);
+        if (character) {
+          character.setEmoji("🍾");
+        }
       }
     });
   }
@@ -296,6 +369,32 @@ class PlayerLanes {
 
   getPlayerPath(playerName) {
     return this.pathsVis.get(playerName);
+  }
+
+  getPlayerPosition(playerName) {
+    const pathVis = this.pathsVis.get(playerName);
+    const lane = this.lanes.get(playerName);
+    if (!lane) return null;
+
+    if (pathVis) {
+      // For regular players, use the path position
+      const position = pathVis.getLatestPlatePosition();
+      if (position) {
+        const laneRect = lane.getBoundingClientRect();
+        return {
+          x: laneRect.left + laneRect.width / 2,
+          y: position.y + 100 // Position below the character
+        };
+      }
+    } else {
+      // For surrendered players, position them lower in the lane
+      const laneRect = lane.getBoundingClientRect();
+      return {
+        x: laneRect.left + laneRect.width / 2,
+        y: laneRect.top + laneRect.height * 0.6 // Position at 80% of lane height
+      };
+    }
+    return null;
   }
 }
 

@@ -218,7 +218,7 @@
             
             // Show end URL label with animation if it's not already showing
             const endUrlLabel = document.getElementById('endUrlLabel');
-            if (!endUrlLabel.classList.contains('showing')) {
+            if (endUrlLabel && !endUrlLabel.classList.contains('showing')) {
               endUrlLabel.classList.add('showing');
             }
           }
@@ -234,12 +234,16 @@
 
             // Hide end URL label with animation
             const endUrlLabel = document.getElementById('endUrlLabel');
-            endUrlLabel.classList.remove('showing');
-            endUrlLabel.classList.add('hiding');
-            // Remove from DOM after animation completes
-            setTimeout(() => {
-              endUrlLabel.remove();
-            }, 400); // Match transition duration
+            if (endUrlLabel) {
+              endUrlLabel.classList.remove('showing');
+              endUrlLabel.classList.add('hiding');
+              // Remove from DOM after animation completes
+              setTimeout(() => {
+                if (endUrlLabel.parentNode) {
+                  endUrlLabel.remove();
+                }
+              }, 400); // Match transition duration
+            }
 
             // Show celebratory popup
             this.popup.show(
@@ -286,18 +290,9 @@
               // Get player positions from their paths
               const playerPositions = {};
               state.ranking.forEach((player, index) => {
-                const playerPath = this.playerLanes.getPlayerPath(player.name);
-                const playerLane = this.lanesContainer.querySelector(`.player-lane[data-player="${player.name}"]`);
-                console.log('playerPath', playerPath, player.name)
-                if (playerPath && playerLane) {
-                  const position = playerPath.getLatestPlatePosition();
-                  const laneRect = playerLane.getBoundingClientRect();
-                  if (position) {
-                    playerPositions[player.name] = {
-                      x: laneRect.left + laneRect.width / 2,
-                      y: position.y + 100 // Position below the character
-                    };
-                  }
+                const position = this.playerLanes.getPlayerPosition(player.name);
+                if (position) {
+                  playerPositions[player.name] = position;
                 }
               });
 

@@ -219,7 +219,7 @@ class PlayerPath {
     this.reductionAnimationFrame = requestAnimationFrame(animate);
   }
 
-  update(path) {
+  update(path, gameState) {
     // Store the current path for potential redraw after reduction
     this.paths = path;
     
@@ -227,18 +227,20 @@ class PlayerPath {
     const shouldAnimate = path.length > this.previousLength;
     this.previousLength = path.length;
     
-    // Clear previous elements except the transition plate if it exists
-    const elementsToRemove = [];
-    let currentChild = this.svg.firstChild;
-    while (currentChild) {
-      if (currentChild.getAttribute('data-is-transition') !== 'true') {
-        elementsToRemove.push(currentChild);
-      }
-      currentChild = currentChild.nextSibling;
+    // Clear ALL previous elements including transition plate
+    while (this.svg.firstChild) {
+      this.svg.removeChild(this.svg.firstChild);
     }
-    elementsToRemove.forEach(el => el.parentNode.removeChild(el));
 
     if (!path || !Array.isArray(path) || path.length === 0) return;
+
+    // Check if this player has surrendered
+    const hasSurrendered = path.some(url => url.effect === 'surrender');
+    
+    // If player has surrendered, don't show the path
+    if (hasSurrendered) {
+      return;
+    }
 
     // Add start URL if it's not already in the path
     if (path.length === 0 || path[0].effect !== 'start') {
@@ -284,29 +286,44 @@ class PlayerPath {
     // Calculate visible indices (excluding cancelled effects)
     const visibleIndices = [];
     let nonCancelledCount = 0;
-    
-    // Process all URLs based on cutoff
-    for (let i = 0; i < path.length; i++) {
-      if (path[i].effect !== "cancelled") {
-        if (nonCancelledCount >= this.cutOff) {
-          visibleIndices.push(i);
-        }
-        nonCancelledCount++;
-      }
-    }
-
-    // Always ensure the last non-cancelled URL is included
     let lastNonCancelledIndex = -1;
-    for (let i = path.length - 1; i >= 0; i--) {
-      if (path[i].effect !== "cancelled") {
-        lastNonCancelledIndex = i;
-        break;
+    
+    // If game is finished and player has surrendered, show only last two URLs
+    if (gameState === 'finished' && hasSurrendered) {
+      // Find the last two non-cancelled URLs
+      let lastTwoIndices = [];
+      for (let i = path.length - 1; i >= 0; i--) {
+        if (path[i].effect !== "cancelled") {
+          lastTwoIndices.push(i);
+          if (lastTwoIndices.length === 2) break;
+        }
       }
-    }
+      visibleIndices.push(...lastTwoIndices);
+      // Set cutoff to show only these two URLs
+      this.cutOff = Math.max(0, path.filter(url => url.effect !== "cancelled").length - 2);
+    } else {
+      // Process all URLs based on cutoff
+      for (let i = 0; i < path.length; i++) {
+        if (path[i].effect !== "cancelled") {
+          if (nonCancelledCount >= this.cutOff) {
+            visibleIndices.push(i);
+          }
+          nonCancelledCount++;
+        }
+      }
 
-    // If we found a last non-cancelled URL and it's not already included, add it
-    if (lastNonCancelledIndex !== -1 && !visibleIndices.includes(lastNonCancelledIndex)) {
-      visibleIndices.push(lastNonCancelledIndex);
+      // Find the last non-cancelled URL
+      for (let i = path.length - 1; i >= 0; i--) {
+        if (path[i].effect !== "cancelled") {
+          lastNonCancelledIndex = i;
+          break;
+        }
+      }
+
+      // If we found a last non-cancelled URL and it's not already included, add it
+      if (lastNonCancelledIndex !== -1 && !visibleIndices.includes(lastNonCancelledIndex)) {
+        visibleIndices.push(lastNonCancelledIndex);
+      }
     }
 
     // Sort indices in reverse order (most recent at top, start URL at bottom)
@@ -317,6 +334,8 @@ class PlayerPath {
     console.log('Last non-cancelled index:', lastNonCancelledIndex);
     console.log('Cutoff:', this.cutOff);
     console.log('Non-cancelled count:', nonCancelledCount);
+    console.log('Has surrendered:', hasSurrendered);
+    console.log('Game state:', gameState);
 
     // Draw ropes between visible plates
     // We'll delay drawing the last rope if animating
@@ -437,8 +456,14 @@ class PlayerPath {
       title.setAttribute('dominant-baseline', 'middle');
       title.setAttribute('fill', 'white'); // White text
       // Extract title from urlObj.url
-      let urlTitle = urlObj.title || (urlObj.url ? decodeURIComponent(urlObj.url.split('/').pop()).replace(/_/g, ' ') : '');
-      title.textContent = urlTitle;
+      let urlTitle = urlObj.title;
+      if (!urlTitle) {
+        const urlStr = typeof urlObj === 'string' ? urlObj : (urlObj.url || '');
+        if (urlStr) {
+          urlTitle = decodeURIComponent(urlStr.split('/').pop()).replace(/_/g, ' ');
+        }
+      }
+      title.textContent = urlTitle || '';
       g.appendChild(title);
 
       // Scale font if needed

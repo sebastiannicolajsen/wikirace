@@ -115,11 +115,11 @@ class PlayerCharacter {
 
   constructor(playerName, allPlayerNames) {
     this.name = playerName;
-    this.color = PlayerCharacter.getColorForPlayer(playerName, allPlayerNames);
-    this.shape = PlayerCharacter.getShapeForPlayer(playerName, allPlayerNames);
-    this.eyes = PlayerCharacter.getEyesForPlayer(playerName, allPlayerNames);
-    this.eyebrows = PlayerCharacter.getEyebrowsForPlayer(playerName, allPlayerNames);
-    this.mouth = PlayerCharacter.getMouthForPlayer(playerName, allPlayerNames);
+    this.color = PlayerCharacter.getColorForPlayer(playerName, allPlayerNames) || PlayerCharacter.COLORS[0];
+    this.shape = PlayerCharacter.getShapeForPlayer(playerName, allPlayerNames) || PlayerCharacter.SHAPES[0];
+    this.eyes = PlayerCharacter.getEyesForPlayer(playerName, allPlayerNames) || PlayerCharacter.EYES[0];
+    this.eyebrows = PlayerCharacter.getEyebrowsForPlayer(playerName, allPlayerNames) || PlayerCharacter.EYEBROWS[0];
+    this.mouth = PlayerCharacter.getMouthForPlayer(playerName, allPlayerNames) || PlayerCharacter.MOUTHS[0];
     this.isLookingLeft = false;
     this.verticalOffset = 0;
     this.horizontalOffset = 0;
