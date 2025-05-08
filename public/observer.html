@@ -237,18 +237,36 @@
         }
 
         .widescreen-message {
+          display: none;
+        }
+
+        #widescreenFrame {
           display: block;
-          text-align: center;
-          padding: 2rem;
-          font-size: 1.2rem;
-          color: var(--primary-color);
-          font-weight: bold;
+          width: 100vw;
+          height: 100vh;
+          border: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          z-index: 1;
+        }
+
+        body {
+          overflow: hidden;
         }
       }
 
       @media (max-width: 767px) {
         .widescreen-message {
           display: none;
+        }
+
+        #widescreenFrame {
+          display: none;
+        }
+
+        .observer-container {
+          display: block;
         }
       }
 
@@ -274,6 +292,8 @@
     <div id="headerButtonContainer"></div>
     
     <div class="widescreen-message">Widescreen observer panel not supported, coming soon</div>
+    
+    <iframe id="widescreenFrame" src="/observer-widescreen.html" style="display: none;"></iframe>
     
     <div class="observer-container">
       <div id="playersList"></div>
@@ -315,6 +335,12 @@
 
       // Function to show effect used notification
       function showEffectUsedNotification(playerName, type, targetName) {
+          // Disable notifications if widescreen is active
+          const widescreenFrame = document.getElementById('widescreenFrame');
+          if (widescreenFrame && widescreenFrame.style.display !== 'none') {
+              return;
+          }
+          
           const emoji = type === 'bomb' ? '💣' : type === 'swap' ? '🔄' : '↩️';
           
           // Create notification container if it doesn't exist
@@ -384,14 +410,20 @@
 
       // Add event listener for addition events
       window.addEventListener('addition-used', (event) => {
-          const { sender, type, target } = event.detail;
-          effectNotificationQueue.push({ 
-              playerName: sender, 
-              type: type,
-              targetName: target
-          });
-          // Process queue after a short delay to ensure DOM is ready
-          setTimeout(processNotificationQueue, 100);
+        const widescreenFrame = document.getElementById('widescreenFrame');
+        if (
+          widescreenFrame &&
+          widescreenFrame.style.display !== 'none' &&
+          widescreenFrame.contentWindow &&
+          widescreenFrame.contentWindow.widescreenObserver &&
+          typeof widescreenFrame.contentWindow.widescreenObserver.showAdditionUsedPopup === 'function'
+        ) {
+          widescreenFrame.contentWindow.widescreenObserver.showAdditionUsedPopup(event.detail);
+          return;
+        }
+        // Fallback: show notification as before (for mobile or non-widescreen)
+        const { sender, type, target } = event.detail;
+        showEffectUsedNotification(sender, type, target);
       });
 
       // Function to check for used additions
@@ -865,8 +897,37 @@
 
         // Handle redirection if game is in lobby
         if (state.state === 'lobby') {
+          // Clear all path cutoffs from localStorage before redirecting
+          const pathVis = document.querySelectorAll('.player-lane').forEach(lane => {
+            const pathVis = lane.querySelector('svg');
+            if (pathVis) {
+              const roomId = pathVis.getAttribute('data-room-id');
+              if (roomId) {
+                localStorage.removeItem(`playerPathCutoff_${roomId}`);
+              }
+            }
+          });
           window.location.href = `/room/${roomId}`;
           return;
+        }
+
+        // Handle finished state for mobile view
+        if (state.state === 'finished') {
+          if (window.innerWidth < 768) {
+            // Import and use the finished view handler for mobile
+            import('/game/finished.js').then(module => {
+              const observerContainer = document.querySelector('.observer-container');
+              module.handleStateUpdate(state, observerContainer);
+            });
+            return;
+          } else {
+            // For desktop, just update the widescreen observer
+            const widescreenFrame = document.getElementById('widescreenFrame');
+            if (widescreenFrame && widescreenFrame.contentWindow.widescreenObserver) {
+              widescreenFrame.contentWindow.widescreenObserver.update(state);
+            }
+            return;
+          }
         }
 
         // Check for used additions before updating the players list
@@ -875,9 +936,36 @@
         // Update players list
         updatePlayersList(state);
 
+        // Update widescreen observer if in widescreen mode
+        if (window.innerWidth >= 768) {
+          const widescreenFrame = document.getElementById('widescreenFrame');
+          if (widescreenFrame && widescreenFrame.contentWindow.widescreenObserver) {
+            widescreenFrame.contentWindow.widescreenObserver.update(state);
+          }
+        }
+
         // Process any queued notifications after state update
         setTimeout(processNotificationQueue, 100);
       });
+
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        const widescreenFrame = document.getElementById('widescreenFrame');
+        if (window.innerWidth >= 768) {
+          widescreenFrame.style.display = 'block';
+          if (widescreenFrame.contentWindow.widescreenObserver && websocketManager.gameState) {
+            widescreenFrame.contentWindow.widescreenObserver.update(websocketManager.gameState);
+          }
+        } else {
+          widescreenFrame.style.display = 'none';
+        }
+      });
+
+      // Initial check for widescreen mode
+      if (window.innerWidth >= 768) {
+        const widescreenFrame = document.getElementById('widescreenFrame');
+        widescreenFrame.style.display = 'block';
+      }
 
       // Connect to WebSocket
       websocketManager.connect(roomId, playerName, playerType);

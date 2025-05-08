@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Observer - WikiRace</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        height: 100vh;
+        background: #f5f5f5;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+
+      #backgroundCanvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+      }
+
+      .lanes-container {
+        display: flex;
+        height: 100vh;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+        padding: 2rem;
+      }
+
+      .player-lane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        position: relative;
+        height: 100%;
+        padding: 1rem;
+        padding-bottom: 0rem;
+        margin-bottom: 5rem;
+      }
+
+      .player-name {
+        text-align: center;
+        color: var(--primary-color, #333);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+        margin-top: 1rem;
+        z-index: 1;
+      }
+
+      /* Ensure SVG path visualization is visible */
+      .player-lane svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      /* End URL floating label styles */
+      .end-url-label {
+        position: fixed;
+        top: 2rem;
+        left: 50%;
+        transform: translateX(-50%) scale(0.8);
+        background: white;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+        border: 2px solid #222;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        z-index: 10;
+        opacity: 0;
+        transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+                    opacity 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+
+      .end-url-label.showing {
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+      }
+
+      .end-url-label.hiding {
+        transform: translateX(-50%) scale(0.8);
+        opacity: 0;
+      }
+
+      .end-url-label .emoji-box {
+        background: #fffbe7;
+        padding: 0.5rem;
+        border-radius: 18px;
+        border: 2px solid #222;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+        transform: scale(0.8);
+        transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+
+      .end-url-label.showing .emoji-box {
+        transform: scale(1);
+      }
+
+      .end-url-label .emoji {
+        font-size: 24px;
+        display: block;
+      }
+
+      .end-url-label .title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 400px;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+                    opacity 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+
+      .end-url-label.showing .title {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      @keyframes wobble {
+        0%,
+        100% {
+          transform: translateX(-50%) rotate(-2deg);
+        }
+        25% {
+          transform: translateX(-50%) rotate(2deg);
+        }
+        50% {
+          transform: translateX(-50%) rotate(-2deg);
+        }
+        75% {
+          transform: translateX(-50%) rotate(2deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="backgroundCanvas"></canvas>
+    <div class="end-url-label" id="endUrlLabel">
+      <div class="emoji-box">
+        <span class="emoji">🏁</span>
+      </div>
+      <div class="title" id="endUrlTitle"></div>
+      <div class="emoji-box">
+        <span class="emoji">🏁</span>
+      </div>
+    </div>
+    <div class="lanes-container" id="lanesContainer"></div>
+
+    <script src="/js/backgroundScene.js"></script>
+    <script type="module">
+      import PlayerLanes from "/js/playerLanes.js";
+      import ObserverTimer from "/js/observerTimer.js";
+      import ObserverPopup from "/js/observerPopup.js";
+      import PlayerCharacter from "/js/playerCharacter.js";
+      import RankingAnimation from "/js/rankingAnimation.js";
+
+      // Initialize background scene
+      const backgroundCanvas = document.getElementById('backgroundCanvas');
+      const backgroundScene = new BackgroundScene(backgroundCanvas);
+
+      class WidescreenObserver {
+        constructor() {
+          this.lanesContainer = document.getElementById("lanesContainer");
+          this.playerLanes = new PlayerLanes(this.lanesContainer);
+          this.playerLanes.setBackgroundScene(backgroundScene); // Connect background scene
+          this.endUrlTitle = document.getElementById("endUrlTitle");
+          this.timer = new ObserverTimer();
+          this.popup = new ObserverPopup();
+          this.previousState = null;
+          this.shownPopups = new Set();
+          this.previousPlayerPaths = {};
+          this.rankingAnimation = null;
+        }
+
+        update(state) {
+          // Initialize shownPopups if this is the first state
+          if (!this.previousState) {
+            this.shownPopups = new Set();
+            this.previousPlayerPaths = {};
+          }
+          
+          console.log('Widescreen observer received state:', {
+            state: state.state,
+            previousState: this.previousState?.state,
+            shownPopups: Array.from(this.shownPopups)
+          });
+          this.playerLanes.update(state);
+          // Update end URL title if available
+          if (state.endUrl) {
+            const title =
+              state.endUrl.title ||
+              decodeURIComponent(state.endUrl.split("/").pop()).replace(
+                /_/g,
+                " "
+              );
+            this.endUrlTitle.textContent = title;
+            
+            // Show end URL label with animation if it's not already showing
+            const endUrlLabel = document.getElementById('endUrlLabel');
+            if (!endUrlLabel.classList.contains('showing')) {
+              endUrlLabel.classList.add('showing');
+            }
+          }
+
+          if(state.state === "finished") {
+            this.timer.hide()
+          }
+
+          // Show rankings when game is finished
+          if (state.state === "finished" && state.ranking) {
+            // Trigger background transition
+            this.playerLanes.triggerBackgroundTransition();
+
+            // Hide end URL label with animation
+            const endUrlLabel = document.getElementById('endUrlLabel');
+            endUrlLabel.classList.remove('showing');
+            endUrlLabel.classList.add('hiding');
+            // Remove from DOM after animation completes
+            setTimeout(() => {
+              endUrlLabel.remove();
+            }, 400); // Match transition duration
+
+            // Show celebratory popup
+            this.popup.show(
+              "Finished!",
+              "What a competition!",
+              "🏆",
+              null,
+              "#FFD700", // Gold color
+              "large",
+              3000
+            );
+
+            // Trigger full-screen confetti
+            if (window.confetti) {
+              const duration = 3 * 1000;
+              const animationEnd = Date.now() + duration;
+              const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+              const interval = setInterval(() => {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                  return clearInterval(interval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+
+                // Multiple confetti bursts from different positions
+                window.confetti({
+                  ...defaults,
+                  particleCount,
+                  origin: { x: Math.random(), y: Math.random() },
+                  colors: ['#FFD700', '#FFFFFF', '#FFA500'],
+                  shapes: ['circle', 'square', 'triangle'],
+                  gravity: 1.5,
+                  scalar: 1.2,
+                  drift: 0
+                });
+              }, 500);
+            }
+
+            // Delay the ranking reveal until after the popup
+            setTimeout(() => {
+              // Get player positions from their paths
+              const playerPositions = {};
+              state.ranking.forEach((player, index) => {
+                const playerPath = this.playerLanes.getPlayerPath(player.name);
+                const playerLane = this.lanesContainer.querySelector(`.player-lane[data-player="${player.name}"]`);
+                console.log('playerPath', playerPath, player.name)
+                if (playerPath && playerLane) {
+                  const position = playerPath.getLatestPlatePosition();
+                  const laneRect = playerLane.getBoundingClientRect();
+                  if (position) {
+                    playerPositions[player.name] = {
+                      x: laneRect.left + laneRect.width / 2,
+                      y: position.y + 100 // Position below the character
+                    };
+                  }
+                }
+              });
+
+              console.log('playerPositions', playerPositions)
+
+              // Show ranking animation
+              this.rankingAnimation = new RankingAnimation();
+              this.rankingAnimation.showRankings(state.ranking, playerPositions);
+            }, 3000); // Wait for 3 seconds (popup duration)
+          }
+
+          // Show popup when a player selects a link (path length increases)
+          if (["running", "waiting"].includes(state.state) && this.previousState) {
+            for (const player of state.players) {
+              const prevPlayer = this.previousState.players?.find(p => p.name === player.name);
+              const prevLength = prevPlayer?.path?.length || 0;
+              const currLength = player.path?.length || 0;
+              if (currLength > prevLength) {
+                // format the last url to get the title
+                const lastEntry = player.path[player.path.length - 1];
+                let lastTitle = "";
+                if (lastEntry && lastEntry.url) {
+                  lastTitle = lastEntry.title ||
+                    decodeURIComponent(lastEntry.url.split("/").pop()).replace(/_/g, " ");
+                }
+                const playerColor = player.playerCharacter?.color
+                  || PlayerCharacter.getColorForPlayer(player.name, state.players.map(p => p.name))
+                  || "#43A047";
+                this.popup.show(
+                  "Link selected!",
+                  `"${lastTitle}"`,
+                  "🔗",
+                  player.name,
+                  playerColor,
+                  "small",
+                  1250
+                );
+                break; // Only show one popup per update
+              }
+            }
+          }
+
+          // Show popup when a player newly becomes ready in paused state
+          if (state.state === "paused") {
+            for (const playerName of state.continueResponses) {
+              if (!this.previousState.continueResponses.includes(playerName)) {
+                const player = state.players.find(p => p.name === playerName);
+                if (player) {
+                  const playerColor = player.playerCharacter?.color
+                    || PlayerCharacter.getColorForPlayer(player.name, state.players.map(p => p.name))
+                    || "#43A047";
+                  this.popup.show(
+                    "Ready!",
+                    "Another player is ready",
+                    "✅",
+                    player.name,
+                    playerColor,
+                    "small",
+                    1200
+                  );
+                  break; // Only show one popup per update
+                }
+              }
+            }
+          }
+
+          // Handle timer based on state changes
+          this.handleTimerState(state);
+          this.previousState = state;
+          // Update previous player paths
+          this.previousPlayerPaths = {};
+          for (const player of state.players) {
+            this.previousPlayerPaths[player.name] = player.path?.length || 0;
+          }
+        }
+
+        handleTimerState(state) {
+          const currentState = state.state;
+          console.log('Widescreen handleTimerState:', {
+            currentState,
+            previousState: this.previousState?.state,
+            shownPopups: Array.from(this.shownPopups),
+            hasPreviousState: !!this.previousState,
+            shouldShowInitialRunning: currentState === "running" && !this.previousState && !this.shownPopups.has("running"),
+            shouldShowPaused: currentState === "paused" && !this.shownPopups.has("paused"),
+            shouldShowHandout: currentState === "handout" && !this.shownPopups.has("handout"),
+            shouldShowRecurringRunning: currentState === "running" && this.previousState && !this.shownPopups.has("running_recurring")
+          });
+
+          // Reset shown popups when entering running state
+          if (currentState === "running" && this.previousState?.state !== "running") {
+            console.log('Resetting popups when entering running state');
+            this.shownPopups = new Set();
+          }
+
+          // Handle timer visibility
+          if (["paused", "running"].includes(currentState) && this.timer.isVisible) {
+            this.timer.hide();
+          }
+
+          // Show timer for waiting state if not already shown
+          if (currentState === "waiting" && !this.timer.isVisible) {
+            const remainingSeconds = Math.ceil(
+              (state.waitingTimerStartTime +
+                state.countdownTime * 1000 -
+                Date.now()) /
+                1000
+            );
+            if (remainingSeconds > 0) {
+              this.timer.show(remainingSeconds);
+            } else {
+              this.timer.hide();
+              // Show popup when timer runs out in waiting state
+              this.popup.show(
+                "Timer ran out!",
+                "Player selecting for others.",
+                "👥",
+                null,
+                "#43A047",
+                "small",
+                2000
+              );
+            }
+          }
+
+          // Handle handout state timer
+          if (currentState === "handout") {
+            if (this.previousState?.state === "waiting" && this.timer.isVisible) {
+              this.timer.hide();
+            }
+            if (!this.timer.isVisible && state.additionState) {
+              const remainingSeconds = Math.ceil(
+                (state.additionState.additionEndTime - Date.now()) / 1000
+              );
+              if (remainingSeconds > 0) {
+                this.timer.show(remainingSeconds);
+              }
+            }
+          }
+
+          // Handle popups based on state
+          if (currentState === "running") {
+            if (!this.previousState) {
+              // Initial race start
+              if (!this.shownPopups.has("running")) {
+                console.log('Showing initial race start popup');
+                this.popup.show(
+                  "RACE START!",
+                  "Find your path!",
+                  "🏃",
+                  null,
+                  "#43A047",
+                  "large",
+                  2000
+                );
+                this.shownPopups.add("running");
+              }
+            } else if (this.previousState.state !== "running") {
+              // Recurring running state
+              console.log('Showing recurring running popup');
+              this.popup.show(
+                "Link selection.",
+                "Ready to continue!?",
+                "🔗",
+                null,
+                "#43A047",
+                "large",
+                2000
+              );
+              this.shownPopups.add("running_recurring");
+            }
+          } else if (currentState === "paused" && !this.shownPopups.has("paused")) {
+            console.log('Showing paused popup');
+            this.popup.show(
+              "Pause time!",
+              "Ready to continue!?",
+              "☕️",
+              null,
+              "#FF9800",
+              "large",
+              2000
+            );
+            this.shownPopups.add("paused");
+          } else if (currentState === "handout" && !this.shownPopups.has("handout")) {
+            console.log('Showing handout popup');
+            this.popup.show(
+              "Playing cards",
+              "Play the cards you want!?",
+              "💥",
+              null,
+              "#9C27B0",
+              "large",
+              2000
+            );
+            this.shownPopups.add("handout");
+          }
+        }
+
+        showAdditionUsedPopup({ sender, type, target }) {
+          let title = '';
+          let emoji = '';
+          if (type === 'bomb') { title = 'Bomb used!'; emoji = '💣'; }
+          else if (type === 'swap') { title = 'Swap used!'; emoji = '🔄'; }
+          else if (type === 'return') { title = 'Return used!'; emoji = '↩️'; }
+          else { title = 'Addition used!'; emoji = '✨'; }
+
+          // Try to find sender in the most recent state
+          let player = null;
+          if (this.previousState && this.previousState.players) {
+            player = this.previousState.players.find(p => p.name === sender);
+          }
+          let playerColor = PlayerCharacter.getColorForPlayer(target, this.previousState?.players?.map(p => p.name)) || '#43A047'
+
+          this.popup.show(
+            title,
+            { text: `On ${target}`, color: playerColor },
+            emoji,
+            sender,
+            playerColor,
+            'small',
+            1250
+          );
+        }
+      }
+
+      // Export the observer instance
+      window.widescreenObserver = new WidescreenObserver();
+    </script>
+  </body>
+</html>
