@@ -1,18 +1,18 @@
 [
   {
+    "name": "As Intended",
+    "description": "A fun race where all effect cards are enabled and can be obtained during play. ",
+    "parameters": "Q=30PAPB1R1S0F10YYYL1S1",
+    "emoji": "👨",
+    "tags": ["classic", "effect cards", "chaos", "strategy"],
+    "category": "Regular"
+  },
+  {
     "name": "Classic Race",
     "description": "No effect cards, no breaks, just pure speed and knowledge!",
     "parameters": "Q=30PNPBNRNSN",
     "emoji": "🏁",
     "tags": ["classic"],
-    "category": "Regular"
-  },
-  {
-    "name": "As Intended",
-    "description": "A fun race where all effect cards are enabled and can be obtained during play. ",
-    "parameters": "Q=30PAPB1R1S1F20YYYL2S2",
-    "emoji": "👨",
-    "tags": ["classic", "effect cards", "chaos", "strategy"],
     "category": "Regular"
   },
   {

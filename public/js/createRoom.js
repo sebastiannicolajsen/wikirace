@@ -554,7 +554,14 @@ class CreateRoomManager {
             const countValue = countContainer.querySelector('.count-value');
             const minusBtn = countContainer.querySelector('.minus');
             const plusBtn = countContainer.querySelector('.plus');
-            let count = 0;
+            
+            // Initialize count from display value, ensuring it's a number
+            let count = parseInt(countValue.textContent);
+            if (isNaN(count)) {
+                count = 0;
+            }
+            // Ensure display matches internal count
+            countValue.textContent = count;
 
             // Toggle effect
             button.addEventListener('click', () => {
@@ -574,9 +581,11 @@ class CreateRoomManager {
                     count = 0;
                     countValue.textContent = '0';
                 } else {
-                    // When enabling, set count to 1
-                    count = 1;
-                    countValue.textContent = '1';
+                    // When enabling, set count to 1 if not already set
+                    if (count === 0) {
+                        count = 1;
+                        countValue.textContent = '1';
+                    }
                 }
 
                 // Check if any effects are enabled
@@ -613,7 +622,14 @@ class CreateRoomManager {
             const countValue = countContainer.querySelector('.count-value');
             const minusBtn = countContainer.querySelector('.minus');
             const plusBtn = countContainer.querySelector('.plus');
-            let count = 1;  // Start at 1 for timer/exposure
+            
+            // Initialize count from display value, ensuring it's a number
+            let count = parseInt(countValue.textContent);
+            if (isNaN(count)) {
+                count = 1;
+            }
+            // Ensure display matches internal count
+            countValue.textContent = count;
 
             // Toggle setting
             button.addEventListener('click', () => {
@@ -633,9 +649,11 @@ class CreateRoomManager {
                     count = 0;
                     countValue.textContent = '0';
                 } else {
-                    // When enabling, set count to 1
-                    count = 1;
-                    countValue.textContent = '1';
+                    // When enabling, set count to 1 if not already set
+                    if (count === 0) {
+                        count = 1;
+                        countValue.textContent = '1';
+                    }
                 }
             });
 
@@ -947,7 +965,10 @@ class CreateRoomManager {
                         bombButton.classList.add('active');
                         bombButton.querySelector('.effect-state').textContent = 'On';
                         bombContainer.style.display = 'flex';
-                        bombContainer.querySelector('.count-value').textContent = bombCount;
+                        const countValue = bombContainer.querySelector('.count-value');
+                        countValue.textContent = bombCount;
+                        // Store the count in the container's dataset
+                        bombContainer.dataset.count = bombCount;
                         const bombInput = bombButton.closest('.icon-button-group').querySelector('input[name="bombEnabled"]');
                         if (bombInput) bombInput.value = 'true';
                     }
@@ -976,7 +997,10 @@ class CreateRoomManager {
                         returnButton.classList.add('active');
                         returnButton.querySelector('.effect-state').textContent = 'On';
                         returnContainer.style.display = 'flex';
-                        returnContainer.querySelector('.count-value').textContent = returnCount;
+                        const countValue = returnContainer.querySelector('.count-value');
+                        countValue.textContent = returnCount;
+                        // Store the count in the container's dataset
+                        returnContainer.dataset.count = returnCount;
                         const returnInput = returnButton.closest('.icon-button-group').querySelector('input[name="returnEnabled"]');
                         if (returnInput) returnInput.value = 'true';
                     }
@@ -1005,7 +1029,10 @@ class CreateRoomManager {
                         swapButton.classList.add('active');
                         swapButton.querySelector('.effect-state').textContent = 'On';
                         swapContainer.style.display = 'flex';
-                        swapContainer.querySelector('.count-value').textContent = swapCount;
+                        const countValue = swapContainer.querySelector('.count-value');
+                        countValue.textContent = swapCount;
+                        // Store the count in the container's dataset
+                        swapContainer.dataset.count = swapCount;
                         const swapInput = swapButton.closest('.icon-button-group').querySelector('input[name="swapEnabled"]');
                         if (swapInput) swapInput.value = 'true';
                     }
@@ -1142,7 +1169,10 @@ class CreateRoomManager {
                             linkRewardButton.classList.add('active');
                             linkRewardButton.querySelector('.effect-state').textContent = 'On';
                             linkRewardContainer.style.display = 'flex';
-                            linkRewardContainer.querySelector('.count-value').textContent = linkRewardCount;
+                            const countValue = linkRewardContainer.querySelector('.count-value');
+                            countValue.textContent = linkRewardCount;
+                            // Store the count in the container's dataset
+                            linkRewardContainer.dataset.count = linkRewardCount;
                             const linkRewardInput = linkRewardButton.closest('.icon-button-group').querySelector('input[name="additions_obtainWithTimer"]');
                             if (linkRewardInput) linkRewardInput.value = 'true';
                         }
@@ -1170,7 +1200,10 @@ class CreateRoomManager {
                             cardRewardButton.classList.add('active');
                             cardRewardButton.querySelector('.effect-state').textContent = 'On';
                             cardRewardContainer.style.display = 'flex';
-                            cardRewardContainer.querySelector('.count-value').textContent = cardRewardCount;
+                            const countValue = cardRewardContainer.querySelector('.count-value');
+                            countValue.textContent = cardRewardCount;
+                            // Store the count in the container's dataset
+                            cardRewardContainer.dataset.count = cardRewardCount;
                             const cardRewardInput = cardRewardButton.closest('.icon-button-group').querySelector('input[name="additions_obtainWithExposure"]');
                             if (cardRewardInput) cardRewardInput.value = 'true';
                         }
