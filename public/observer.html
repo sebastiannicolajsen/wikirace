@@ -508,17 +508,24 @@
                 state: state.state
             });
             if (state.state === 'waiting' && state.countdownTime && state.waitingTimerStartTime) {
+                // Get the highest latency from all players
+                const maxLatency = Math.max(...state.players.map(p => p.latency || 0));
                 const endTime = state.waitingTimerStartTime + state.countdownTime * 1000;
+                const adjustedEndTime = endTime - maxLatency;
+                
                 console.log('Timer values:', {
                     endTime,
+                    adjustedEndTime,
+                    maxLatency,
                     now: Date.now(),
-                    remaining: Math.ceil((endTime - Date.now()) / 1000)
+                    remaining: Math.ceil((adjustedEndTime - Date.now()) / 1000)
                 });
+                
                 const updateTimer = () => {
                     const now = Date.now();
-                    const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
+                    const remaining = Math.max(0, (adjustedEndTime - now) / 1000);
                     if (remaining > 0) {
-                        statusText.textContent = `Players selecting... (${remaining}s)`;
+                        statusText.textContent = `Players selecting... (${Math.ceil(remaining)}s)`;
                         requestAnimationFrame(updateTimer);
                     } else {
                         statusText.textContent = 'Player links being selected for other players';
@@ -558,9 +565,14 @@
             if (state.config?.additions_callType === 'free_for_all') {
                 const updateStatusText = () => {
                     if (state.additionState?.additionEndTime) {
+                        // Get the highest latency from all players
+                        const maxLatency = Math.max(...state.players.map(p => p.latency || 0));
+                        const duration = state.config.additions_timer || 30;
+                        const adjustedEndTime = state.additionState.additionEndTime - maxLatency;
+                        
                         const now = Date.now();
-                        const remaining = Math.max(0, Math.ceil((state.additionState.additionEndTime - now) / 1000));
-                        statusText.textContent = `Players playing effect cards (${remaining}s)`;
+                        const remaining = Math.max(0, (adjustedEndTime - now) / 1000);
+                        statusText.textContent = `Players playing effect cards (${Math.ceil(remaining)}s)`;
                         if (remaining > 0) {
                             requestAnimationFrame(updateStatusText);
                         }
@@ -573,9 +585,14 @@
                 const currentPlayer = state.additionState.eligiblePlayers[0];
                 const updateStatusText = () => {
                     if (state.additionState?.additionEndTime) {
+                        // Get the highest latency from all players
+                        const maxLatency = Math.max(...state.players.map(p => p.latency || 0));
+                        const duration = state.config.additions_timer || 30;
+                        const adjustedEndTime = state.additionState.additionEndTime - maxLatency;
+                        
                         const now = Date.now();
-                        const remaining = Math.max(0, Math.ceil((state.additionState.additionEndTime - now) / 1000));
-                        statusText.innerHTML = `<span style="color: var(--primary-color);">${currentPlayer}</span> playing effect cards (${remaining}s)`;
+                        const remaining = Math.max(0, (adjustedEndTime - now) / 1000);
+                        statusText.innerHTML = `<span style="color: var(--primary-color);">${currentPlayer}</span> playing effect cards (${Math.ceil(remaining)}s)`;
                         if (remaining > 0) {
                             requestAnimationFrame(updateStatusText);
                         }

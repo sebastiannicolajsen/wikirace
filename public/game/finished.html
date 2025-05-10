@@ -1,7 +1,15 @@
 <div class="container finished-page">
   <div class="results-container">
     <div class="game-info">
-      <div class="game-title"></div>
+      <div class="title-container">
+        <div class="game-title"></div>
+        <button class="clipboard-button" style="display: none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
       <div class="room-name"></div>
       <div class="urls">
         <div class="start-url"></div>
@@ -62,6 +70,13 @@
 .game-info {
   text-align: center;
   margin-bottom: 0.5rem;
+}
+
+.title-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .game-title {
@@ -634,5 +649,39 @@
   margin-left: 0.5rem;
   font-size: 0.9em;
   opacity: 0.7;
+}
+
+/* Update styles for the title container and clipboard button */
+.title-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.clipboard-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.clipboard-button:hover {
+  color: #333;
+  transform: translateY(-1px);
+}
+
+.clipboard-button:active {
+  transform: translateY(0);
+}
+
+.clipboard-button svg {
+  width: 1.2rem;
+  height: 1.2rem;
 }
 </style> 

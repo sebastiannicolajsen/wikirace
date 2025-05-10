@@ -406,8 +406,45 @@ function setupFinishedPage(state, subpageElement) {
     const startUrl = subpageElement.querySelector('.start-url');
     const endUrl = subpageElement.querySelector('.end-url');
     const restartButton = subpageElement.querySelector('.restart-button');
+    const clipboardButton = subpageElement.querySelector('.clipboard-button');
     
     if (roomName) roomName.textContent = state.name || 'Game Results';
+    
+    // Show clipboard button for creator
+    if (clipboardButton) {
+        clipboardButton.style.display = 'inline-block';
+        clipboardButton.addEventListener('click', () => {
+            const gameStateData = {
+                _dattype: "wikirace",
+                data: state
+            };
+            navigator.clipboard.writeText(JSON.stringify(gameStateData))
+                .then(() => {
+                    // Show a temporary success message
+                    const originalHTML = clipboardButton.innerHTML;
+                    clipboardButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>`;
+                    setTimeout(() => {
+                        clipboardButton.innerHTML = originalHTML;
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Failed to copy game state:', err);
+                    // Show a temporary error message
+                    const originalHTML = clipboardButton.innerHTML;
+                    clipboardButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>`;
+                    setTimeout(() => {
+                        clipboardButton.innerHTML = originalHTML;
+                    }, 2000);
+                });
+        });
+    }
     
     // Check if shortest paths data is available
     const hasShortestPaths = state.shortestpaths && state.shortestpaths !== 'disabled' && state.shortestpaths !== 'not-found';

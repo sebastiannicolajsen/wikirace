@@ -228,6 +228,16 @@ export function updateHeader(state) {
   const chartButton = document.getElementById("chartButton");
   if (chartButton) {
     chartButton.onclick = () => showPlayerInfoPopup(state);
+    // Hide chart button during running state
+    if (state.state === 'running') {
+      chartButton.style.display = 'none';
+    } else if (state.state === 'waiting') {
+      // Only show chart button if player is in submittedPlayers
+      chartButton.style.display = state.submittedPlayers?.includes(websocketManager.playerName) ? 'flex' : 'none';
+    } else {
+      // Show chart button in all other states
+      chartButton.style.display = 'flex';
+    }
   }
 }
 

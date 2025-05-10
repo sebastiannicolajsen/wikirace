@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiRace Tournament Tool</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .round-settings {
+            margin-top: 1rem;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none; /* Hidden by default */
+        }
+        .round-settings.visible {
+            display: block;
+        }
+        .round-settings h3 {
+            margin-top: 0;
+        }
+        .round-settings .form-group {
+            margin-bottom: 0.5rem;
+        }
+        .round-settings input[type="text"] {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .round-settings .url-preview {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        .existing-tournaments {
+            margin-bottom: 2rem;
+        }
+        .tournament-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .tournament-card {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tournament-card h3 {
+            margin: 0;
+            font-size: 1.1em;
+        }
+        .tournament-card .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .tournament-card .actions button {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8em;
+        }
+        .player-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #e0e0e0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin: 0.25rem;
+            font-size: 0.9em;
+        }
+        .player-tag .remove {
+            margin-left: 0.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .player-tag .remove:hover {
+            color: #ff0000;
+        }
+        .player-input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .round-card {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-bottom: 1rem;
+        }
+        .round-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 0.5rem;
+        }
+        .round-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+        }
+        .round-header-left h3 {
+            margin: 0;
+            font-size: 1.1em;
+            white-space: nowrap;
+        }
+        .player-count-group {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .player-count-input {
+            width: 40px;
+            padding: 0.25rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            -moz-appearance: textfield; /* Firefox */
+        }
+        .player-count-input::-webkit-outer-spin-button,
+        .player-count-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .player-count-button {
+            padding: 0.25rem;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            color: #666;
+            cursor: pointer;
+        }
+        .player-count-button:hover {
+            background: #e9e9e9;
+            border-color: #ccc;
+        }
+        .player-count-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .round-header-actions {
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
+        }
+        .button-icon {
+            padding: 0.25rem;
+            min-width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid #ddd;
+            color: #666;
+        }
+        .button-icon:hover {
+            background: #f5f5f5;
+            border-color: #ccc;
+        }
+        .button-icon i {
+            font-size: 0.9em;
+        }
+        .round-results-input {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .round-results-input input {
+            flex: 1;
+        }
+        .back-button {
+            margin-bottom: 1rem;
+        }
+        .player-mapping-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 90%;
+            width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .player-mapping-popup h3 {
+            margin-top: 0;
+        }
+        .player-mapping-row {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .player-mapping-row:last-child {
+            border-bottom: none;
+        }
+        .player-mapping-row label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .player-mapping-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .player-mapping-buttons button {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+        }
+        .player-mapping-buttons button.selected {
+            background: #4CAF50;
+            color: white;
+        }
+        .player-mapping-popup .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        .player-mapping-popup .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .tournament-id {
+            font-size: 0.8em;
+            color: #666;
+            font-weight: normal;
+            margin-left: 0.5rem;
+        }
+        .tournament-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .tournament-header h2 {
+            margin: 0;
+        }
+        .rounds {
+            margin-top: 2rem;
+        }
+        .round-rules {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .rule-section {
+            margin-bottom: 1rem;
+        }
+        .rule-section h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        .rule-inputs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .rule-inputs select,
+        .rule-inputs input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+        .rule-inputs input[type="number"] {
+            width: 60px;
+        }
+        .round-status {
+            margin-top: 0.5rem;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .round-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .round-actions button {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.9em;
+        }
+        .round-players {
+            margin-top: 0.5rem;
+            font-size: 0.9em;
+        }
+        .round-players .player-tag {
+            font-size: 0.8em;
+        }
+        .toggle-settings {
+            margin-left: 0.5rem;
+            color: #666;
+            cursor: pointer;
+        }
+        .toggle-settings:hover {
+            color: #333;
+        }
+        .rule-section .help-text {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        @media (max-width: 768px) {
+            .rule-inputs {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .rule-inputs select,
+            .rule-inputs input {
+                width: 100%;
+            }
+            .round-actions {
+                flex-direction: column;
+            }
+        }
+        .player-table {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .player-cell {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .player-cell .add-player {
+            width: 100%;
+            height: 100%;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f5;
+            border: 1px dashed #ddd;
+            color: #666;
+            font-size: 0.9em;
+            padding: 0.25rem;
+        }
+        .player-cell .add-player:hover {
+            background: #e9e9e9;
+            border-color: #ccc;
+        }
+        .player-cell .add-player i {
+            margin-right: 0.25rem;
+        }
+        .input-cell {
+            background: white;
+        }
+        .no-player {
+            color: #666;
+            font-style: italic;
+        }
+        .player-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #e0e0e0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            width: 100%;
+            justify-content: space-between;
+        }
+        .player-tag .remove {
+            cursor: pointer;
+            color: #666;
+        }
+        .player-tag .remove:hover {
+            color: #ff0000;
+        }
+        .player-table-container {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .player-table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .player-table-header h4 {
+            margin: 0;
+            color: #333;
+        }
+        .player-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            min-height: 2rem;
+        }
+        .player-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #e0e0e0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .player-tag .remove {
+            margin-left: 0.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .player-tag .remove:hover {
+            color: #ff0000;
+        }
+        .no-players {
+            color: #666;
+            font-style: italic;
+        }
+        .add-player-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            width: 300px;
+        }
+        .add-player-popup .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .add-player-popup h3 {
+            margin-top: 0;
+        }
+        .add-player-popup .form-group {
+            margin-bottom: 1rem;
+        }
+        .add-player-popup .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        .rule-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            justify-content: center;
+        }
+        .rule-button {
+            padding: 0.25rem;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .rule-button:hover {
+            background: #e9e9e9;
+            border-color: #ccc;
+        }
+        .rule-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .rule-button.process-in {
+            color: #4CAF50;
+        }
+        .rule-button.process-out {
+            color: #2196F3;
+        }
+        .rule-button.clear {
+            color: #f44336;
+        }
+        .rule-button.clear-in {
+            color: #4CAF50;
+        }
+        .rule-button.clear-out {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <main class="page-content">
+            <div class="container">
+                <div id="animatedTitle"></div>
+
+                <!-- Existing Tournaments Section -->
+                <div class="card existing-tournaments">
+                    <h2>Existing Tournaments</h2>
+                    <div id="tournamentList" class="tournament-list">
+                        <!-- Tournaments will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Create Tournament Section -->
+                <div class="card">
+                    <h2>Create New Tournament</h2>
+                    <p class="description">Set up a new tournament with multiple rounds!</p>
+                    
+                    <form id="tournamentForm" class="form">
+                        <div class="form-group">
+                            <label class="form-label" for="tournamentName">Tournament Name</label>
+                            <input type="text" id="tournamentName" class="form-input" required
+                                   placeholder="Enter tournament name">
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="button">Create Tournament</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="button-group">
+                    <a href="/" class="button button-secondary button-small">Back to Home</a>
+                </div>
+
+                <a href="https://github.com/sebastiannicolajsen/wikirace" class="github-link" target="_blank">
+                    <i class="fab fa-github"></i>
+                    <span>Mostly vibe-coded</span>
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import popupManager from '/js/popup.js';
+        import { generatePlayerName } from '/js/nameGenerator.js';
+        import { initAnimatedTitle, getAnimatedTitleHTML } from '/js/animatedTitle.js';
+
+        // Insert animated title
+        document.getElementById('animatedTitle').innerHTML = getAnimatedTitleHTML();
+        initAnimatedTitle();
+
+        const form = document.getElementById('tournamentForm');
+        const tournamentNameInput = document.getElementById('tournamentName');
+        const roundCountInput = document.getElementById('roundCount');
+        const roundSettingsContainer = document.getElementById('roundSettingsContainer');
+        const tournamentList = document.getElementById('tournamentList');
+        
+        // Function to load and display existing tournaments
+        function loadExistingTournaments() {
+            const tournamentsKey = 'wikirace_tournament';
+            const tournaments = JSON.parse(localStorage.getItem(tournamentsKey) || '[]');
+            
+            if (tournaments.length === 0) {
+                tournamentList.innerHTML = '<p>No tournaments created yet.</p>';
+                return;
+            }
+
+            tournamentList.innerHTML = tournaments.map(name => {
+                return `
+                    <div class="tournament-card">
+                        <h3>${name}</h3>
+                        <div class="actions">
+                            <button class="button button-small" onclick="openTournament('${name}')">Open</button>
+                            <button class="button button-small" onclick="deleteTournament('${name}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Handle tournament form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const tournamentName = tournamentNameInput.value.trim();
+            if (!tournamentName) {
+                popupManager.showInfo('Please enter a tournament name', 'error');
+                return;
+            }
+
+            // Check if tournament already exists
+            const tournamentsKey = 'wikirace_tournament';
+            const tournaments = JSON.parse(localStorage.getItem(tournamentsKey) || '[]');
+            if (tournaments.includes(tournamentName)) {
+                popupManager.showInfo('A tournament with this name already exists', 'error');
+                return;
+            }
+
+            // Create new tournament data
+            const tournamentData = {
+                name: tournamentName,
+                players: [],
+                rounds: [],
+                createdAt: new Date().toISOString()
+            };
+
+            // Save tournament data
+            localStorage.setItem(`wikirace_tournament_${tournamentName}`, JSON.stringify(tournamentData));
+            
+            // Add to tournament list
+            tournaments.push(tournamentName);
+            localStorage.setItem(tournamentsKey, JSON.stringify(tournaments));
+
+            // Clear form
+            tournamentNameInput.value = '';
+
+            // Show success message
+            popupManager.showInfo('Tournament created successfully', 'success');
+
+            // Reload tournament list
+            loadExistingTournaments();
+        });
+
+        // Function to open a tournament
+        window.openTournament = async function(name) {
+            const tournamentData = JSON.parse(localStorage.getItem(`wikirace_tournament_${name}`));
+            if (!tournamentData) {
+                popupManager.showInfo('Tournament not found', 'error');
+                return;
+            }
+
+            // Store current tournament name
+            sessionStorage.setItem('currentTournament', name);
+
+            // Check if tournament exists on server
+            if (tournamentData.id) {
+                try {
+                    const response = await fetch(`/api/tournament/${tournamentData.id}`);
+                    if (response.ok) {
+                        const serverData = await response.json();
+                        // Merge server data with local data
+                        Object.assign(tournamentData, serverData);
+                        localStorage.setItem(`wikirace_tournament_${name}`, JSON.stringify(tournamentData));
+                    } else {
+                        // Tournament not found on server, clear the ID
+                        delete tournamentData.id;
+                        localStorage.setItem(`wikirace_tournament_${name}`, JSON.stringify(tournamentData));
+                    }
+                } catch (error) {
+                    console.error('Error fetching tournament:', error);
+                }
+            }
+
+            // Create tournament view HTML
+            const container = document.querySelector('.container');
+            container.innerHTML = `
+                <div class="back-button">
+                    <button class="button button-secondary button-small" onclick="loadTournamentList()">
+                        <i class="fas fa-arrow-left"></i> Back to Tournaments
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="tournament-header">
+                        <h2>${name}${tournamentData.id ? ` <span class="tournament-id">[${tournamentData.id}]</span>` : ''}</h2>
+                        <button id="tournamentActionButton" class="button" onclick="handleTournamentAction()">
+                            ${tournamentData.id ? 'End Tournament' : 'Start Tournament'}
+                        </button>
+                    </div>
+                    
+                    <div class="player-management">
+                        <h3>Players</h3>
+                        <div class="player-input-group">
+                            <input type="text" id="playerInput" class="form-input" placeholder="Enter player name">
+                            <button class="button button-small" onclick="addPlayer()">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                        <div id="playerList" class="player-list">
+                            <!-- Players will be added here -->
+                        </div>
+                    </div>
+
+                    <div class="rounds">
+                        <h3>Rounds</h3>
+                        <div class="round-actions">
+                            <button class="button button-small" onclick="addRound()">
+                                <i class="fas fa-plus"></i> Add Round
+                            </button>
+                        </div>
+                        <div id="roundList">
+                            <!-- Rounds will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Load players
+            loadPlayers();
+            // Load rounds
+            loadRounds(tournamentData);
+        };
+
+        // Function to load tournament list view
+        window.loadTournamentList = function() {
+            sessionStorage.removeItem('currentTournament');
+            window.location.reload();
+        };
+
+        // Function to add a player
+        window.addPlayer = function() {
+            const input = document.getElementById('playerInput');
+            const name = input.value.trim();
+            
+            if (!name) return;
+
+            const tournamentName = sessionStorage.getItem('currentTournament');
+            const tournamentData = JSON.parse(localStorage.getItem(`wikirace_tournament_${tournamentName}`));
+            
+            if (!tournamentData.players) {
+                tournamentData.players = [];
+            }
+            
+            if (tournamentData.players.includes(name)) {
+                popupManager.showInfo('Player already exists', 'error');
+                return;
+            }
+
+            tournamentData.players.push(name);
+            localStorage.setItem(`wikirace_tournament_${tournamentName}`, JSON.stringify(tournamentData));
+            
+            input.value = '';
+            loadPlayers();
+        };
+
+        // Function to remove a player
+        window.removePlayer = function(name) {
+            const tournamentName = sessionStorage.getItem('currentTournament');
+            const tournamentData = JSON.parse(localStorage.getItem(`wikirace_tournament_${tournamentName}`));
+            
+            if (!tournamentData.players) {
+                tournamentData.players = [];
+            }
+
+            tournamentData.players = tournamentData.players.filter(p => p !== name);
+            localStorage.setItem(`wikirace_tournament_${tournamentName}`, JSON.stringify(tournamentData));
+            
+            loadPlayers();
+        };
+
+        // Function to load players
+        function loadPlayers() {
+            const playerList = document.getElementById('playerList');
+            if (!playerList) return;
+
+            const tournamentName = sessionStorage.getItem('currentTournament');
+            const tournamentData = JSON.parse(localStorage.getItem(`wikirace_tournament_${tournamentName}`));
+            const players = tournamentData.players || [];
+            
+            playerList.innerHTML = players.map(player => `
+                <span class="player-tag">
+                    ${player}
+                    <span class="remove" onclick="removePlayer('${player}')">
+                        <i class="fas fa-times"></i>
+                    </span>
+                </span>
+            `).join('');
+        }
+
+        // Function to update rule button states
+        window.updateRuleButtonStates = function(roundNumber) {
+            const roundElement = document.querySelector(`#round-settings-${roundNumber}`);
+            if (!roundElement) return;
+
+            const tournamentName = sessionStorage.getItem('currentTournament');
+            const tournamentData = JSON.parse(localStorage.getItem(`wikirace_tournament_${tournamentName}`));
+            const round = tournamentData.rounds.find(r => r.roundNumber === roundNumber);
+            if (!round) return;
+
+            const hasInputPlayers = round.inputPlayers && round.inputPlayers.some(p => p !== null);
+            const hasOutputRules = round.outputRules && round.outputRules.some(r => r.type);
+
+            // Update button states
+            const processInButton = roundElement.querySelector('.process-in');
+            const clearInButton = roundElement.querySelector('.clear-in');
+            const processOutButton = roundElement.querySelector('.process-out');
+            const clearOutButton = roundElement.querySelector('.clear-out');
+
+            processInButton.disabled = hasInputPlayers;
+            clearInButton.disabled = !hasInputPlayers;
+            processOutButton.disabled = !hasInputPlayers || !round.round_results;
+            clearOutButton.disabled = !hasOutputRules;
+        };
+
+        // Function to load rounds
+        function loadRounds(tournamentData) {
+            const roundList = document.getElementById('roundList');
+            if (!roundList) return;
+
+            roundList.innerHTML = tournamentData.rounds.map(round => `
+                <div class="round-card">
+                    <div class="round-header">
+                        <div class="round-header-left">
+                            <h3>Round ${round.roundNumber}</h3>
+                            <div class="player-count-group">
+                                <button class="player-count-button" onclick="updatePlayerCount(${round.roundNumber}, -1)" 
+                                        ${round.playerCount <= 2 ? 'disabled' : ''} title="Decrease player count">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" class="player-count-input" min="2" max="10" 
+                                       value="${round.playerCount}" required
+                                       onchange="updateRoundSetting(${round.roundNumber}, 'playerCount', this.value)">
+                                <button class="player-count-button" onclick="updatePlayerCount(${round.roundNumber}, 1)"
+                                        ${round.playerCount >= 10 ? 'disabled' : ''} title="Increase player count">
+        // Update processInputRules to call updateRuleButtonStates
+        window.processInputRules = function(roundNumber) {
+            // ... existing code ...
+            
+            // After successful processing
+            localStorage.setItem(`wikirace_tournament_${tournamentName}`, JSON.stringify(tournamentData));
+            updateRoundTable(roundNumber);
+            updateRuleButtonStates(roundNumber);
+            
+            popupManager.showInfo(`Selected ${selectedPlayers.filter(p => p !== null).length} players for round ${roundNumber}`, 'success');
+        };
+
+        // Update clearInputRules to call updateRuleButtonStates
+        window.clearInputRules = function(roundNumber) {
+            // ... existing code ...
+            
+            if (round) {
+                round.inputPlayers = Array(round.playerCount).fill(null);
+                localStorage.setItem(`wikirace_tournament_${tournamentName}`, JSON.stringify(tournamentData));
+                updateRoundTable(roundNumber);
+                updateRuleButtonStates(roundNumber);
+            }
+        };
+
+        // Update processOutputRules to call updateRuleButtonStates
+        window.processOutputRules = function(roundNumber) {
+            // ... existing code ...
+            
+            // After successful processing
+            localStorage.setItem(`wikirace_tournament_${tournamentName}`, JSON.stringify(tournamentData));
+            updateRoundTable(roundNumber);
+            round.outputRules.forEach(rule => {
+                if (rule.target) {
+                    updateRoundTable(parseInt(rule.target));
+                }
+            });
+            updateRuleButtonStates(roundNumber);
+            
+            popupManager.showInfo('Processed output rules', 'success');
+        };
+
+        // Update clearOutputRules to call updateRuleButtonStates
+        window.clearOutputRules = function(roundNumber) {
+            // ... existing code ...
+            
+            if (round && round.outputRules) {
+                // ... existing clearing code ...
+                
+                localStorage.setItem(`wikirace_tournament_${tournamentName}`, JSON.stringify(tournamentData));
+                updateRoundTable(roundNumber);
+                round.outputRules.forEach(rule => {
+                    if (rule.target) {
+                        updateRoundTable(parseInt(rule.target));
+                    }
+                });
+                updateRuleButtonStates(roundNumber);
+                popupManager.showInfo('Output players cleared', 'success');
+            }
+        };
+
+    
+    </script>
+</body>
+</html> 

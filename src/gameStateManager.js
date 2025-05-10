@@ -118,16 +118,21 @@ function getGameState(room) {
         creator: room.creator,
         createdAt: room.createdAt,
 
+        // Tournament info
+        tournamentId: room.tournamentId || null,
+
         // Player data
         players: Array.from(room.players.entries()).map(([name, data]) => ({
             name,
             type: data.type,
             path: data.path || [],
-            additions: data.additions || {}
+            additions: data.additions || {},
+            latency: data.latency || null
         })),
         observers: Array.from(room.observers.entries()).map(([name, data]) => ({
             name,
-            type: data.type
+            type: data.type,
+            latency: data.latency || null
         })),
         surrenderedPlayers: room.surrenderedPlayers ? 
             Object.fromEntries(Array.from(room.surrenderedPlayers.entries()).map(([name, data]) => [

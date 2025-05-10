@@ -130,6 +130,13 @@ class WebSocketManager {
       console.log(
         `Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
       );
+      // Show reconnection popup only after first attempt fails
+      if (this.reconnectAttempts > 1) {
+        popupManager.showInfo(
+          `Connection lost. Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`,
+          "info"
+        );
+      }
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
       }
@@ -453,8 +460,11 @@ class WebSocketManager {
   handleMessage(message) {
     console.log('WebSocket message received:', message);
     if (message.type === 'ping') {
-      // Respond to ping with pong
-      this.sendMessage({ type: 'pong' });
+      // Respond to ping with pong, including the timestamp
+      this.sendMessage({ 
+        type: 'pong',
+        timestamp: message.timestamp 
+      });
       return;
     }
     if (message.type === 'select_for_missing_players') {

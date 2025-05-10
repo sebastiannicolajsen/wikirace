@@ -43,17 +43,22 @@ function updateTimer(duration, startTime) {
         return;
     }
 
-    const endTime = startTime + duration * 1000;
+    // Get current player's latency from game state
+    const currentPlayer = currentState.players.find(p => p.name === websocketManager.playerName);
+    const latency = currentPlayer?.latency || 0; // Default to 0 if no latency data
+
+    // Calculate initial remaining time with latency adjustment
+    let remaining = Math.max(0, duration - (latency / 1000));
     
     function updateTimerDisplay() {
-        const now = Date.now();
-        const remaining = Math.max(0, (endTime - now) / 1000);
         timerElement.textContent = formatTime(remaining);
 
         if (remaining <= 0) {
             clearInterval(gameTimer);
             timerElement.textContent = "00:00";
             gameTimer = null;
+        } else {
+            remaining--;
         }
     }
 

@@ -48,7 +48,8 @@ function startPingInterval(ws, roomId) {
     const timeoutId = setTimeout(() => {
         if (ws.readyState === WebSocket.OPEN) {
             try {
-                ws.send(JSON.stringify({ type: 'ping' }));
+                const pingTimestamp = Date.now();
+                ws.send(JSON.stringify({ type: 'ping', timestamp: pingTimestamp }));
                 // Set up pong timeout
                 const pongTimeoutId = setTimeout(() => {
                     console.error('Pong not received within 2 seconds');
@@ -161,6 +162,25 @@ function handleConnection(ws, roomId, data) {
             clearTimeout(pongTimeouts.get(ws));
             pongTimeouts.delete(ws);
         }
+
+        // Calculate latency if timestamp is provided
+        if (data.timestamp) {
+            const latency = (Date.now() - data.timestamp) / 2; // Divide by 2 for one-way latency
+            
+            // Find the player/observer with this WebSocket and update their latency
+            room.players.forEach((playerData) => {
+                if (playerData.ws === ws) {
+                    playerData.latency = latency;
+                }
+            });
+            
+            room.observers.forEach((observerData) => {
+                if (observerData.ws === ws) {
+                    observerData.latency = latency;
+                }
+            });
+        }
+
         // Reset ping interval on pong
         startPingInterval(ws, roomId);
         return true;  // Return true to indicate successful handling
@@ -278,7 +298,8 @@ function handleNewPlayerJoin(ws, room, playerName, playerType) {
         ws: ws,
         path: [],
         additions: {},
-        continued: false
+        continued: false,
+        latency: null // Initialize latency as null
     };
 
     if (playerType === 'player') {
@@ -299,6 +320,81 @@ function handleNewPlayerJoin(ws, room, playerName, playerType) {
 // Function to handle player leaving
 function handlePlayerLeave(room, playerName, playerType) {
     if (playerType === 'player') {
+        // If game is in progress, handle surrender
+        if (room.status !== GameStates.LOBBY && room.status !== GameStates.FINISHED) {
+            // Initialize surrenderedPlayers map if it doesn't exist
+            if (!room.surrenderedPlayers) {
+                room.surrenderedPlayers = new Map();
+            }
+
+            // Get player data before removing them
+            const playerData = room.players.get(playerName);
+            if (playerData) {
+                // Store player data in surrenderedPlayers
+                room.surrenderedPlayers.set(playerName, {
+                    path: playerData.path || [],
+                    surrenderTime: Date.now(),
+                    finalUrl: playerData.path && playerData.path.length > 0 ? 
+                        playerData.path[playerData.path.length - 1].url : null
+                });
+            }
+
+            // Handle waiting state cases
+            if (room.status === GameStates.WAITING) {
+                // If timer has run out and we're waiting for random URLs
+                if (!room.waitingTimer && room.submittedPlayers) {
+                    if (room.config.chooser === 'random') {
+                        // Simulate random URL response
+                        const message = {
+                            type: 'random_url_response',
+                            playerName: playerName,
+                            url: 'https://en.wikipedia.org/wiki/Rickrolling'
+                        };
+                        // Process the message as if it came from the player
+                        if (room.messageHandler) {
+                            room.messageHandler(message);
+                        }
+                    } else {
+                        // Simulate multiple random URLs response
+                        const message = {
+                            type: 'random_urls_response',
+                            playerName: playerName,
+                            urls: Array(5).fill('https://en.wikipedia.org/wiki/Rickrolling')
+                        };
+                        // Process the message as if it came from the player
+                        if (room.messageHandler) {
+                            room.messageHandler(message);
+                        }
+                    }
+                }
+            }
+            // Handle handout state case
+            else if (room.status === GameStates.HANDOUT && room.eligiblePlayers && room.eligiblePlayers.includes(playerName)) {
+                // Handle round-robin addition order
+                if (room.config.additions_callType === 'round_robin' && room.additionOrder) {
+                    const playerIndex = room.additionOrder.indexOf(playerName);
+                    if (playerIndex > room.currentPlayerIndex) {
+                        // Remove player from addition order if they come after current player
+                        room.additionOrder.splice(playerIndex, 1);
+                        // Adjust currentPlayerIndex if needed
+                        if (playerIndex < room.currentPlayerIndex) {
+                            room.currentPlayerIndex--;
+                        }
+                    }
+                }
+
+                // Send ready to continue message
+                const message = {
+                    type: 'player.readyToContinue',
+                    playerName: playerName
+                };
+                // Process the message as if it came from the player
+                if (room.messageHandler) {
+                    room.messageHandler(message);
+                }
+            }
+        }
+
         room.players.delete(playerName);
         if (DEBUG_CONNECTIONS) console.log(`[Room ${room.id}] Player left: ${playerName}`);
     } else {

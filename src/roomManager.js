@@ -87,6 +87,7 @@ const {
 } = require("./roomCleanup");
 const { Worker } = require('worker_threads');
 const path = require('path');
+const { setTournamentCurrentRoom, getTournamentIdFromCreator, tournaments } = require('./tournamentManager');
 
 // Store all active rooms
 const rooms = new Map();
@@ -383,6 +384,14 @@ async function createRoom(
     throw new Error("Maximum room limit reached");
   }
 
+  // Convert mobile URLs to desktop URLs if needed
+  if (startUrl.includes("en.m.wikipedia.org")) {
+    startUrl = startUrl.replace("en.m.wikipedia.org", "en.wikipedia.org");
+  }
+  if (endUrl.includes("en.m.wikipedia.org")) {
+    endUrl = endUrl.replace("en.m.wikipedia.org", "en.wikipedia.org");
+  }
+
   // Validate required parameters
   if (!name || typeof name !== "string") {
     throw new Error("Room name is required");
@@ -552,6 +561,7 @@ async function createRoom(
     readyPlayers: new Set(),
     config: mergedConfig,
     shortestpaths: null,
+    tournamentId: null // Initialize tournamentId as null
   };
 
   rooms.set(id, object);
@@ -559,6 +569,21 @@ async function createRoom(
     `[Room ${id}] Room created and added to rooms map. Current rooms:`,
     Array.from(rooms.keys())
   );
+
+  // Check if this is a tournament room
+  const tournamentId = getTournamentIdFromCreator(creatorName);
+  if (tournamentId) {
+    // Verify tournament exists
+    if (!tournaments.has(tournamentId)) {
+      console.log(`[Room ${id}] Tournament ${tournamentId} not found, deleting room`);
+      deleteRoom(id);
+      throw new Error("Tournament not found");
+    }
+    console.log(`[Room ${id}] Setting as current room for tournament ${tournamentId}`);
+    setTournamentCurrentRoom(tournamentId, id);
+    // Set the tournamentId in the room object
+    object.tournamentId = tournamentId;
+  }
 
   return id;
 }

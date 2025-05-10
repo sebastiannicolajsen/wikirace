@@ -12,6 +12,7 @@ const { router: roomRouter, rooms } = require("./roomManager");
 const { getWikiContent } = require("./wikiProxy");
 const { generateRoomQRCode } = require("./qrCodeManager");
 const { getGameState } = require("./gameStateManager");
+const { router: tournamentRouter } = require("./tournamentManager");
 
 // Get port from environment variable or use 3000 for local development
 const port = process.env.PORT || 3000;
@@ -236,6 +237,9 @@ app.use("/api", apiRouter);
 // Mount room routes
 app.use("/api", roomRouter);
 
+// Mount tournament routes
+app.use("/api/tournament", tournamentRouter);
+
 // WebSocket connection handler
 apiRouter.ws("/ws/:roomId", (ws, req) => {
   const roomId = req.params.roomId;
@@ -299,6 +303,10 @@ app.get("/room/:roomId", (req, res) => {
 
 app.get("/game/:roomId", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/game/game.html"));
+});
+
+app.get("/tournament", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/tournament.html"));
 });
 
 app.get("/examples", (req, res) => {

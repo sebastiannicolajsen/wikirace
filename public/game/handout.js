@@ -6,6 +6,7 @@ import { urlToTitle } from "/js/wikiHelper.js";
 let gameTimer = null;
 const TIMER_ELEMENT_ID = 'gameTimer';
 let totalDuration = null; // Store the total duration at module level
+let currentState = null; // Track current game state
 
 // Add at the top of the file, after imports
 let additionNotificationQueue = [];
@@ -18,7 +19,7 @@ function formatTime(seconds) {
 }
 
 // Function to start/update the game timer based on server state
-function updateTimer(endTime, isEligible = true) {
+function updateTimer(endTime, isEligible = true, state) {
     if (gameTimer) {
         cancelAnimationFrame(gameTimer);
         gameTimer = null;
@@ -30,33 +31,35 @@ function updateTimer(endTime, isEligible = true) {
         return;
     }
 
-    // Only calculate total duration if it hasn't been set yet
-    if (totalDuration === null) {
-        totalDuration = (endTime - Date.now()) / 1000;
-    }
+    // Get current player's latency from game state
+    const currentPlayer = state.players.find(p => p.name === websocketManager.playerName);
+    const latency = currentPlayer?.latency || 0; // Default to 0 if no latency data
+
+    // Get duration from config
+    const duration = state.config.additions_timer || 30; // Default to 30 seconds if not specified
+    
+    // Calculate end time with latency adjustment
+    const adjustedEndTime = endTime - latency;
     
     function updateTimerDisplay() {
         const now = Date.now();
-        const remaining = Math.max(0, (endTime - now) / 1000);
-        const formattedTime = formatTime(remaining);
+        const remaining = Math.max(0, (adjustedEndTime - now) / 1000);
+        
+        timerElement.textContent = formatTime(remaining);
         
         // Calculate progress percentage based on the total duration
-        const progress = (remaining / totalDuration) * 100;
+        const progress = (remaining / duration) * 100;
         
-        // Update the timer text and background
-        timerElement.textContent = formattedTime;
         // Use rgb(226, 229, 234) for active players, lighter gray for others
         const activeColor = isEligible ? 'rgb(226, 229, 234)' : 'rgb(240, 240, 240)';
         timerElement.style.background = `linear-gradient(to right, ${activeColor} ${progress}%, white ${progress}%)`;
 
-        if (remaining <= 0) {
-            cancelAnimationFrame(gameTimer);
+        if (remaining > 0) {
+            gameTimer = requestAnimationFrame(updateTimerDisplay);
+        } else {
             timerElement.textContent = "0s";
             timerElement.style.background = "white";
             gameTimer = null;
-            totalDuration = null; // Reset total duration when timer completes
-        } else {
-            gameTimer = requestAnimationFrame(updateTimerDisplay);
         }
     }
 
@@ -75,7 +78,6 @@ function stopTimer() {
         timerElement.textContent = "--";
         timerElement.style.background = "rgba(224, 224, 224, 0.9)";
     }
-    totalDuration = null; // Reset total duration when timer is stopped
 }
 
 // Function to get emoji for addition type
@@ -253,7 +255,7 @@ function setupHandoutPage(state, subpageElement) {
         // Update timer if we have an end time
         if (state.additionState?.additionEndTime) {
             console.log('Starting timer with end time:', state.additionState.additionEndTime);
-            updateTimer(state.additionState.additionEndTime, true);
+            updateTimer(state.additionState.additionEndTime, true, state);
         } else {
             console.log('No end time found in state, stopping timer');
             stopTimer();
@@ -335,7 +337,7 @@ function setupHandoutPage(state, subpageElement) {
         // Update timer if we have an end time
         if (state.additionState?.additionEndTime) {
             console.log('Starting timer with end time:', state.additionState.additionEndTime);
-            updateTimer(state.additionState.additionEndTime, false);
+            updateTimer(state.additionState.additionEndTime, false, state);
         } else {
             console.log('No end time found in state, stopping timer');
             stopTimer();
@@ -500,6 +502,12 @@ export async function handleStateUpdate(state, subpageElement) {
     }
     
     try {
+        // Reset timer state only when entering handout state
+        if (state.state === 'handout' && (!currentState || currentState.state !== 'handout')) {
+            localStorage.removeItem('handoutTimerState');
+            totalDuration = null;
+        }
+
         // Fetch the handout HTML template
         const response = await fetch('/game/handout.html');
         if (!response.ok) {

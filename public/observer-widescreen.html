@@ -395,14 +395,13 @@
 
           // Show timer for waiting state if not already shown
           if (currentState === "waiting" && !this.timer.isVisible) {
-            const remainingSeconds = Math.ceil(
-              (state.waitingTimerStartTime +
-                state.countdownTime * 1000 -
-                Date.now()) /
-                1000
-            );
-            if (remainingSeconds > 0) {
-              this.timer.show(remainingSeconds);
+            // Get the highest latency from all players
+            const maxLatency = Math.max(...state.players.map(p => p.latency || 0));
+            const duration = state.countdownTime;
+            const adjustedDuration = Math.max(0, duration - (maxLatency / 1000));
+            
+            if (adjustedDuration > 0) {
+              this.timer.show(Math.ceil(adjustedDuration));
             } else {
               this.timer.hide();
               // Show popup when timer runs out in waiting state
@@ -424,11 +423,13 @@
               this.timer.hide();
             }
             if (!this.timer.isVisible && state.additionState) {
-              const remainingSeconds = Math.ceil(
-                (state.additionState.additionEndTime - Date.now()) / 1000
-              );
-              if (remainingSeconds > 0) {
-                this.timer.show(remainingSeconds);
+              // Get the highest latency from all players
+              const maxLatency = Math.max(...state.players.map(p => p.latency || 0));
+              const duration = state.config.additions_timer || 30;
+              const adjustedDuration = Math.max(0, duration - (maxLatency / 1000));
+              
+              if (adjustedDuration > 0) {
+                this.timer.show(Math.ceil(adjustedDuration));
               }
             }
           }
